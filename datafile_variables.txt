@@ -1,0 +1,91 @@
+HDF5 "testdata_2.h5" {
+GROUP "/" {
+   DATASET "DCSdata_Hz" {
+      DATATYPE  H5T_IEEE_F64LE
+      DATASPACE  SIMPLE { ( 80025, 2599 ) / ( 80025, 2599 ) }
+      ATTRIBUTE "IGORWaveScaling" {
+         DATATYPE  H5T_IEEE_F64LE
+         DATASPACE  SIMPLE { ( 3, 2 ) / ( 3, 2 ) }
+      }
+      ATTRIBUTE "IGORWaveType" {
+         DATATYPE  H5T_STD_I32LE
+         DATASPACE  SCALAR
+      }
+      ATTRIBUTE "IGORWaveUnits" {
+         DATATYPE  H5T_STRING {
+            STRSIZE H5T_VARIABLE;
+            STRPAD H5T_STR_NULLTERM;
+            CSET H5T_CSET_UTF8;
+            CTYPE H5T_C_S1;
+         }
+         DATASPACE  SIMPLE { ( 3 ) / ( 3 ) }
+      }
+   }
+   DATASET "Freq_Hz" {
+      DATATYPE  H5T_IEEE_F64LE
+      DATASPACE  SIMPLE { ( 80025 ) / ( 80025 ) }
+      ATTRIBUTE "IGORWaveType" {
+         DATATYPE  H5T_STD_I32LE
+         DATASPACE  SCALAR
+      }
+   }
+   DATASET "LocalTime" {
+      DATATYPE  H5T_IEEE_F64LE
+      DATASPACE  SIMPLE { ( 2599 ) / ( 2599 ) }
+      ATTRIBUTE "IGORWaveType" {
+         DATATYPE  H5T_STD_I32LE
+         DATASPACE  SCALAR
+      }
+   }
+   DATASET "Pressure_mbar" {
+      DATATYPE  H5T_IEEE_F64LE
+      DATASPACE  SIMPLE { ( 2599 ) / ( 2599 ) }
+      ATTRIBUTE "IGORWaveScaling" {
+         DATATYPE  H5T_IEEE_F64LE
+         DATASPACE  SIMPLE { ( 2, 2 ) / ( 2, 2 ) }
+      }
+      ATTRIBUTE "IGORWaveType" {
+         DATATYPE  H5T_STD_I32LE
+         DATASPACE  SCALAR
+      }
+      ATTRIBUTE "IGORWaveUnits" {
+         DATATYPE  H5T_STRING {
+            STRSIZE H5T_VARIABLE;
+            STRPAD H5T_STR_NULLTERM;
+            CSET H5T_CSET_UTF8;
+            CTYPE H5T_C_S1;
+         }
+         DATASPACE  SIMPLE { ( 2 ) / ( 2 ) }
+      }
+   }
+   DATASET "Temperature_K" {
+      DATATYPE  H5T_IEEE_F64LE
+      DATASPACE  SIMPLE { ( 2599 ) / ( 2599 ) }
+      ATTRIBUTE "IGORWaveScaling" {
+         DATATYPE  H5T_IEEE_F64LE
+         DATASPACE  SIMPLE { ( 2, 2 ) / ( 2, 2 ) }
+      }
+      ATTRIBUTE "IGORWaveType" {
+         DATATYPE  H5T_STD_I32LE
+         DATASPACE  SCALAR
+      }
+      ATTRIBUTE "IGORWaveUnits" {
+         DATATYPE  H5T_STRING {
+            STRSIZE H5T_VARIABLE;
+            STRPAD H5T_STR_NULLTERM;
+            CSET H5T_CSET_UTF8;
+            CTYPE H5T_C_S1;
+         }
+         DATASPACE  SIMPLE { ( 2 ) / ( 2 ) }
+      }
+   }
+   DATASET "path_m" {
+      DATATYPE  H5T_IEEE_F64LE
+      DATASPACE  SCALAR
+      ATTRIBUTE "IGORVariable" {
+         DATATYPE  H5T_STD_I32LE
+         DATASPACE  SCALAR
+      }
+   }
+}
+}
