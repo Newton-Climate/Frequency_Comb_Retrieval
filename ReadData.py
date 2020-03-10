@@ -1,6 +1,7 @@
 from hapi import * # import HITRAN database functions
 import numpy as np
 import h5py
+from scipy.interpolate import interp1d # interpolation for regridding
 
 # Next tep is to compute the dry air mole fraction from the pressure (probably using hypsometric equation)
 
@@ -20,8 +21,8 @@ N/A
     
     
     fetch('CH4_S' ,6 ,1 ,min_wavelength ,max_wavelength)
-    fetch('CO2_S',6,1,min_wavelength, max_wavelength)
-    fetch('H2O_S',6,1,min_wavelength,max_wavelength)
+    fetch('CO2_S',2,1,min_wavelength, max_wavelength)
+    fetch('H2O_S',1,1,min_wavelength,max_wavelength)
     return 0
 
 
@@ -36,14 +37,15 @@ class CombData:
             return data
 
         self.temperature = GetDataField('Temperature_K')
-        self.pressure = GetDataField('Pressure_mbar')
-        self.pathlength = GetDataField('path_m')
+        self.pressure = GetDataField('Pressure_mbar') / 1013 # convert from mbar to atm
+        self.pathlength = GetDataField('path_m') * 100.0 # convert from m to cm        
         frequency = GetDataField('Freq_Hz')
-        c = 299792458;
-        frequency = np.flip(frequency) # need to reverse the order to low -> high
-        self.frequency = c/frequency*1e9;
-        FC = GetDataField('DCSdata_Hz')
-        self.FC = np.flip(FC, axis = 1)
+        c = 299792458 * 100 # speed of light
+#        frequency = np.flip(frequency) # need to reverse the order to low -> high
+#        self.frequency = c/frequency*1e9; # convert to nanometers
+        self.wavenumber_grid = frequency / c # convert to wave nubmers from hz
+        self.FC = GetDataField('DCSdata_Hz')
+#        self.FC = np.flip(self.FC, axis = 0)
         return self
 
     def __init__(self, filename):
@@ -57,10 +59,11 @@ class Measurement(CombData):
     def GetMeasurement(self  ,measurement_number ,dataset_object ):
         self.pressure = dataset_object.pressure[measurement_number]
         self.FC = dataset_object.FC[ measurement_number ]
-        self.temperature = dataset_object.temperature[ measurement_number ]
-        self.spectral_grid = dataset_object.frequency
+        self.temperature = dataset_object.temperature[ measurement_number ] # degrees K
+        self.spectral_grid = dataset_object.wavenumber_grid
         self.min_wavelength = self.spectral_grid[0]
         self.max_wavelength = self.spectral_grid[-1]
+        self.spectral_resolution = self.spectral_grid[1] - self.spectral_grid[0]
         self.pathlength = dataset_object.pathlength
         return self
 
@@ -86,20 +89,36 @@ class HitranSpectra:
     def ComputeCrossSections(self):
         temperature_ = self.temperature
         pressure_ = self.pressure
-        min_wavelength = self.min_wavelength
-        max_wavelength = self.max_wavelength
-        self.grid, self.CH4 = absorptionCoefficient_Voigt(SourceTables='CH4_S', WavenumberRange=[ min_wavelength ,max_wavelength ] ,Environment={'p':pressure_ ,'T':temperature_},IntensityThreshold=1e-27)
-        nu_, self.CO2 = absorptionCoefficient_Voigt(SourceTables='CO2_S', WavenumberRange=[ min_wavelength ,max_wavelength ] ,Environment={'p':pressure_ ,'T':temperature_},IntensityThreshold=1e-27)
-        nu_, self.H2O = absorptionCoefficient_Voigt(SourceTables='H2O_S', WavenumberRange=[ min_wavelength ,max_wavelength ] ,Environment={'p':pressure_ ,'T':temperature_},IntensityThreshold=1e-27)
+        min_wavelength =   self.min_wavelength # convert to cm^-1
+        max_wavelength = self.max_wavelength # convert to bbcm^-1
+        wavenumber_resolution = self.spectral_resolution
+        print(max_wavelength, '\n')
+        print(min_wavelength, '\n')
+        self.grid, self.CH4 = absorptionCoefficient_Voigt(SourceTables='CH4_S', WavenumberRange=[ min_wavelength ,max_wavelength ] ,WavenumberStep = wavenumber_resolution ,Environment={'p':pressure_ ,'T':temperature_},IntensityThreshold=1e-27)
+        nu_, self.CO2 = absorptionCoefficient_Voigt(SourceTables='CO2_S', WavenumberRange=[ min_wavelength ,max_wavelength ] ,WavenumberStep = wavenumber_resolution ,Environment={'p':pressure_ ,'T':temperature_},IntensityThreshold=1e-27)
+        nu_, self.H2O = absorptionCoefficient_Voigt(SourceTables='H2O_S', WavenumberRange=[ min_wavelength ,max_wavelength ] ,WavenumberStep = wavenumber_resolution ,Environment={'p':pressure_ ,'T':temperature_},IntensityThreshold=1e-27)
+        return self
+
+    def GetSolarSpectrum(self):
+        sun = np.loadtxt('solar_merged_20160127_600_26316_000.out')
+        c = 299792458 * 100 # speed of light
+        solar_grid = 1e7 / sun[:,0]
+        f_solar = interp1d(solar_grid, sun[:,1])
+        print(solar_grid)
+        solar_transmission = f_solar(self.grid) # will need to modify this from nm to cm^-1
+        return solar_transmission
 
 
     def __init__(self ,dataset_object):
 
         self.max_wavelength = dataset_object.max_wavelength + 1
         self.min_wavelength = dataset_object.min_wavelength - 1
+        self.spectral_resolution = dataset_object.spectral_resolution
         self.pressure = dataset_object.pressure
         self.temperature = dataset_object.temperature
         self.ComputeCrossSections()
+        self.solar_spectrum = self.GetSolarSpectrum()
+#        self.grid = np.flip(self.grid)
         
 
 
@@ -107,6 +126,6 @@ class HitranSpectra:
 file = 'testdata_2.h5'
 data = CombData(file)
 current_data = Measurement( 100 , data)
-GetCrossSections( current_data.min_wavelength ,current_data.max_wavelength)
+GetCrossSections( current_data.min_wavelength ,  current_data.max_wavelength)
 spectra = HitranSpectra(current_data)
 
