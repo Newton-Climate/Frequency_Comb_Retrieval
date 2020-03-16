@@ -3,21 +3,33 @@ from scipy.interpolate import interp1d
 from scipy.special import legendre
 import pdb
 
+VMR_H2O_index ,VMR_CH4_index ,VMR_CO2_index ,shape_parameter_index = 0 ,1 ,2 ,3
+legendre_polynomial_degree = 5
+
+
 def CalculateTransmission(state_vector ,measurement_object ,hitran_object):
     cross_sections = hitran_object
     if type(state_vector) == np.ndarray:
-        state_vector = ArrayToDict( state_vector )
+        VMR_CH4 = state_vector[ VMR_CH4_index ]
+        VMR_CO2 = state_vector[ VMR_CO2_index ]
+        VMR_H2O = state_vector[ VMR_H2O_index ]
+        shape_parameter = state_vector[ shape_parameter_index ]
+
+
+        
     if type(state_vector) == dict:
         VMR_CH4 = state_vector[ 'VMR_CH4' ]
         VMR_CO2 = state_vector[ 'VMR_CO2' ]
         VMR_H2O = state_vector[ 'VMR_H2O' ]
 
+
         
-        VCD_dry = measurement_object.VCD
+    VCD_dry = measurement_object.VCD
     optical_depth = VCD_dry * (VMR_CH4 * cross_sections.CH4 + VMR_H2O * cross_sections.H2O + VMR_CO2 * cross_sections.CO2)
     solar_spectrum = hitran_object.solar_spectrum
-    transmission = solar_spectrum * np.exp( -optical_depth)
+    transmission = np.exp( -optical_depth)
     return transmission, optical_depth
+
 
 def DownSampleInstrument( input_spectral_grid ,input_spectra ,output_spectral_grid ):
     
@@ -37,23 +49,33 @@ downsampled_grid: the lower resolution spectral grid
     return finterp( output_spectral_grid)
 
 
-def GenerateLegendrePolynomial(degree):
-    coefficients = legendre(degree ,monic= True)
-    polynomial = np.poly1d(coefficients)
-    derivative = np.polyder(polynomial)
-    return polynomial ,derivative 
 
-x = {
-    'VMR_H2O' : 0.01,
-    'VMR_CH4' : 1700e-9,
-    'VMR_CO2' : 400e-6
-    }
+def MakePolynomialGrid( polynomial_degree ,shape_parameter ,input_grid ,min_wavenumber, max_wavenumber):
+    window_indexes = np.array( np.where( (input_grid > min_wavenumber) & (input_grid < max_wavenumber) ) )
+    window_indexes = window_indexes[0,:]
+    left_window_index ,right_window_index = window_indexes[0] ,window_indexes[-1]
+
+    def GenerateLegendrePolynomial(degree_ ,shape_parameter_):
+        coefficients = legendre(degree_ ,monic= False)
+        coefficients = shape_parameter_ * coefficients
+        polynomial = np.poly1d(coefficients)
+        derivative = np.polyder(polynomial)
+        return polynomial 
+
+    polynomial_function = GenerateLegendrePolynomial( polynomial_degree ,shape_parameter )
+    shifted_grid = input_grid - np.mean(input_grid)
+    output_values = np.ones( shifted_grid.shape )
+    output_values[ left_window_index : right_window_index ] = polynomial_function( shifted_grid[ left_window_index : right_window_index ] )
+    return output_values
+
+
 
 def ArrayToDict( input_vector ):
     output_dict = {
-        'VMR_H2O' : input_vector[0],
-        'VMR_CH4' : input_vector[1],
-    'VMR_CO2' : input_vector[2]
+        'VMR_H2O' : input_vector[ VMR_H2O_index],
+        'VMR_CH4' : input_vector[ VMR_CH4_index ],
+        'VMR_CO2' : input_vector[ VMR_CO2_index ],
+        'shape_parameter' : input_vector[ shape_parameter_index ]
     }
     return output_dict
 
@@ -62,23 +84,20 @@ def ForwardModel(state_vector ,measurement_object ,hitran_object):
     
     transmission, optical_depth = CalculateTransmission( state_vector ,measurement_object ,hitran_object)
     instrument_spectra = DownSampleInstrument( hitran_object.grid ,transmission ,measurement_object.spectral_grid )
-    legendre_polynomial ,polynomial_derivative = GenerateLegendrePolynomial(5)
-
-
-    def MakePolynomialGrid( polynomial_function ,input_grid ,min_wavenumber, max_wavenumber):
-        window_indexes = np.array( np.where( (input_grid > min_wavenumber) & (input_grid < max_wavenumber) ) )
-        window_indexes = window_indexes[0,:]
-        left_window_index ,right_window_index = window_indexes[0] ,window_indexes[-1]
-        
-        shifted_grid = input_grid - np.mean(input_grid)
-        output_values = np.ones( shifted_grid.shape )
-        output_values[ left_window_index : right_window_index ] = polynomial_function( shifted_grid[ left_window_index : right_window_index ] )
-        return output_values
-
-    evaluated_polynomial = MakePolynomialGrid( legendre_polynomial ,measurement_object.spectral_grid ,5952.4 ,6230.5 )
     
-    irr = instrument_spectra * evaluated_polynomial
-    return irr
+    try:
+        shape_parameter = state_vector['shape_parameter']
+    except:
+        shape_parameter = state_vector[ shape_parameter_index ]
+        degree = 5
+
+
+
+
+    evaluated_polynomial = MakePolynomialGrid( legendre_polynomial_degree ,shape_parameter ,measurement_object.spectral_grid ,5952.4 ,6230.5 )
+    
+    irr = instrument_spectra #* evaluated_polynomial
+    return irr ,transmission ,evaluated_polynomial
 
 def DictToArray( input_dictionary ):
 
@@ -103,24 +122,29 @@ outputs:
 Jacobain: the jacobain of hte forward model
 """
 
-    f = ForwardModel( state_vector ,measurement_object ,hitran_object)
+    f ,transmission ,evaluated_polynomial = ForwardModel( state_vector ,measurement_object ,hitran_object )
     if type(state_vector) == dict:
         state_vector = DictToArray( state_vector )
 
     jacobian = np.empty( (f.size ,len(state_vector)) )
-    print(state_vector) # need to convert to a array
+
+
+    shape_parameter = state_vector[ shape_parameter_index ]
+    evaluated_polynomial = MakePolynomialGrid( legendre_polynomial_degree ,shape_parameter ,hitran_object.grid ,5952.4 ,6230.5 )
 
     if linear:
-        f, g = CalculateTransmission(state_vector ,measurement_object ,hitran_object)
+
         vcd = measurement_object.VCD
         CO2_cross_sections = hitran_object.CO2
         H2O_cross_sections = hitran_object.H2O
         CH4_cross_sections = hitran_object.CH4
-        print(f * vcd * H2O_cross_sections - f*vcd*CO2_cross_sections)
+
         
-        jacobian[: ,0] = DownSampleInstrument(hitran_object.grid , f * vcd * H2O_cross_sections ,measurement_object.spectral_grid)
-        jacobian[: ,1] = DownSampleInstrument(hitran_object.grid ,CH4_cross_sections * vcd * f,measurement_object.spectral_grid)
-        jacobian[: ,2] = DownSampleInstrument(hitran_object.grid ,CO2_cross_sections * vcd * f,measurement_object.spectral_grid)
+        jacobian[: ,0] = DownSampleInstrument(hitran_object.grid , -1*transmission * vcd * H2O_cross_sections ,measurement_object.spectral_grid)
+        jacobian[: ,1] = DownSampleInstrument(hitran_object.grid ,-1 * CH4_cross_sections * vcd * transmission,measurement_object.spectral_grid)
+        jacobian[: ,2] = DownSampleInstrument(hitran_object.grid ,-1 * CO2_cross_sections * vcd * transmission,measurement_object.spectral_grid)
+#        jacobian[:,3] = np.ones(measurement_object.spectral_grid.shape)
+        jacobian[:,3] = DownSampleInstrument(hitran_object.grid ,transmission * evaluated_polynomial ,measurement_object.spectral_grid) 
 #        pdb.set_trace()
 	
     else: #calculate the derivative using finite differencing (Euler's method)
@@ -130,31 +154,22 @@ Jacobain: the jacobain of hte forward model
 
             x_0 = state_vector.copy()
             dx = state_vector.copy()
-            dx[ perturbation_index ] = 1.001 * dx[ perturbation_index ]
-            df = ForwardModel( dx ,measurement_object ,hitran_object )
+            dx[ perturbation_index ] = 1.01 * dx[ perturbation_index ]
+            df ,transmission ,evaluated_polynomial = ForwardModel( dx ,measurement_object ,hitran_object )
+#            pdb.set_trace()
             df_dx = (df - f) / ( dx[ perturbation_index ] - x_0[ perturbation_index ])
             state_vector = ArrayToDict( state_vector )
             return df_dx
         
 
-        for i in range( len( state_vector ) ):
-            jacobian[ : ,i ] = CalculateDerivative( i ,state_vector)
+        for state_vector_index in range( len( state_vector )  ):
+            jacobian[ : , state_vector_index ] = CalculateDerivative( state_vector_index ,state_vector)
             # end of for-loop
+
+            # Evaluate the shape parameter jacobian explicitly, because finite-difference is unstable 
+#        jacobian[ : ,shape_parameter_index ] = DownSampleInstrument( hitran_object.grid ,transmission * evaluated_polynomial ,measurement_object.spectral_grid )
 
     return jacobian
 # end of function CalculateJacobian
 
 
-    
-f = ForwardModel(x ,current_data ,spectra)
-k = ComputeJacobian( x ,current_data ,spectra ,linear=True)
-from numpy.linalg import inv
-from numpy import dot
-
-ans = inv(k.T.dot(k)).dot(k.T).dot(np.log(f))
-t, od = CalculateTransmission( x ,current_data,spectra)
-import matplotlib.pyplot as plt
-plt.plot(spectra.grid ,t)
-plt.xlabel(r'$cm^{-1}$')
-plt.ylabel('Transmission')
-plt.savefig('test.pdf')
