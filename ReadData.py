@@ -2,6 +2,7 @@ from hapi import * # import HITRAN database functions
 import numpy as np
 import h5py
 from scipy.interpolate import interp1d # interpolation for regridding
+import pdb
 
 def GetCrossSections( min_wavenumber ,max_wavenumber):
 
@@ -52,6 +53,7 @@ object = CombData( 'filename.h5')
 #        self.frequency = c/frequency*1e9; # convert to nanometers
         self.wavenumber_grid = frequency / c # convert to wave nubmers from hz
         self.FC = GetDataField('DCSdata_Hz')
+        self.num_measurements = self.FC.shape[1]
 #        self.FC = np.flip(self.FC, axis = 0)
         return self
     # end of method ReadDataFile
@@ -81,13 +83,21 @@ inputs:
         '''
 Reads data from FrequencyComb_object and assigns fields 
 '''
-        
+
+
         self.pressure = dataset_object.pressure[measurement_number]
-        self.FC = dataset_object.FC[ : ,measurement_number ]
-        self.temperature = dataset_object.temperature[ measurement_number ] # degrees K
         self.spectral_grid = dataset_object.wavenumber_grid
-        self.min_wavenumber = self.spectral_grid[0]
-        self.max_wavenumber = self.spectral_grid[-1]
+
+        # subset Frequency Comb data to user-defined spectral range
+        window_indexes = np.array( np.where( (self.spectral_grid > self.min_wavenumber) & (self.spectral_grid < self.max_wavenumber) ))
+        # Specify index of min and max wavenumber range in array
+        left_index ,right_index = window_indexes[ 0, 0] ,window_indexes[ 0, -1]
+
+        self.FC = dataset_object.FC[ left_index : right_index ,measurement_number ] # subset FC to user-defined wavenumber range
+        self.spectral_grid = self.spectral_grid[left_index : right_index]
+
+        
+        self.temperature = dataset_object.temperature[ measurement_number ] # degrees K
         self.spectral_resolution = self.spectral_grid[1] - self.spectral_grid[0]
         self.pathlength = dataset_object.pathlength
         return self
@@ -108,7 +118,7 @@ Calculates VCD from self and FrequencyComb_object
 
 
         if VMR_H2O == None:
-            print('No a priori humidity value was given. Assuming 0 percent humidity by default \n')
+#            print('No a priori humidity value was given. Assuming 0 percent humidity by default \n')
             VMR_H2O = 0.0
 
         try:
@@ -125,7 +135,9 @@ Calculates VCD from self and FrequencyComb_object
     # end of method GetVCD
 
 
-    def __init__(self, measurement_number, dataset_object):
+    def __init__(self, measurement_number ,min_wavenumber ,max_wavenumber ,dataset_object):
+        self.max_wavenumber = max_wavenumber
+        self.min_wavenumber = min_wavenumber
         self.GetMeasurement( measurement_number ,dataset_object)
         self.GetVCD()
     # end of method __init__
@@ -195,3 +207,8 @@ initializes and saves solar spectra object and corresponding spectral grid
 
 
 
+file = 'testdata_2.h5'
+data = CombData(file)
+current_data = Measurement( 1000 ,6000 ,6350 , data)
+GetCrossSections( current_data.min_wavenumber ,current_data.max_wavenumber)
+spectra = HitranSpectra( current_data)
