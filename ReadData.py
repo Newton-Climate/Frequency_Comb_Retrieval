@@ -145,7 +145,7 @@ Calculates VCD from self and FrequencyComb_object
 
 
 
-    def __init__(self, measurement_number ,min_wavenumber ,max_wavenumber ,dataset_object, legendre_polynomial_degree = 20):
+    def __init__(self, measurement_number ,min_wavenumber ,max_wavenumber ,dataset_object, legendre_polynomial_degree = 40):
         self.max_wavenumber = max_wavenumber
         self.min_wavenumber = min_wavenumber
         self.GetMeasurement( measurement_number ,dataset_object)
