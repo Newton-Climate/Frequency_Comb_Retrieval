@@ -126,7 +126,10 @@ def MakeInversionFunction( dataset_object, initial_guess):
 def InvertParallel( inversion_function, num_measurements):
     pool = mp.Pool(4)
     result = pool.map( inversion_function ,[i for i in range(num_measurements )])
-    return result
+
+    # order results by time stamp
+    result = sorted(result ,lambda x: x[-1])
+    return np.array(result)
 
     
     
