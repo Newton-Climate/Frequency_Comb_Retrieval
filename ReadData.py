@@ -1,8 +1,13 @@
 from hapi import * # import HITRAN database functions
 import numpy as np
 import h5py
-from scipy.interpolate import interp1d # interpolation for regridding
+import multiprocessing as mp
 import pdb
+
+
+
+
+import numpy as np
 
 def GetCrossSections( min_wavenumber ,max_wavenumber):
 
@@ -49,7 +54,8 @@ object = CombData( 'filename.h5')
 
         self.temperature = GetDataField('Temperature_K')
         self.pressure = GetDataField('Pressure_mbar')
-        self.pathlength = GetDataField('path_m') * 100.0 # convert from m to cm        
+        self.pathlength = GetDataField('path_m') * 100.0 # convert from m to cm
+        self.time = GetDataField('LocalTime')
         frequency = GetDataField('Freq_Hz')
         c = 299792458 * 100 # speed of light
 #        frequency = np.flip(frequency) # need to reverse the order to low -> high
@@ -62,6 +68,9 @@ object = CombData( 'filename.h5')
 #        self.FC = np.flip(self.FC, axis = 0)
         return self
     # end of method ReadDataFile
+
+    
+
 
 
     def __init__(self, filename):
@@ -92,6 +101,7 @@ Reads data from FrequencyComb_object and assigns fields
 
         self.pressure = dataset_object.pressure[measurement_number]
         self.spectral_grid = dataset_object.wavenumber_grid
+        self.time = dataset_object.time[ measurement_number ]
 
         # subset Frequency Comb data to user-defined spectral range
         window_indexes = np.array( np.where( (self.spectral_grid > self.min_wavenumber) & (self.spectral_grid < self.max_wavenumber) ))
@@ -133,6 +143,8 @@ Calculates VCD from self and FrequencyComb_object
     # end of method GetVCD
 
 
+
+
     def __init__(self, measurement_number ,min_wavenumber ,max_wavenumber ,dataset_object, legendre_polynomial_degree = 20):
         self.max_wavenumber = max_wavenumber
         self.min_wavenumber = min_wavenumber
@@ -140,6 +152,8 @@ Calculates VCD from self and FrequencyComb_object
         self.GetVCD()
         self.legendre_polynomial_degree = legendre_polynomial_degree
     # end of method __init__
+
+
 # end of class Measurement 
         
 
