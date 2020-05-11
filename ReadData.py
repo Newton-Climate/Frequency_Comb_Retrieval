@@ -24,11 +24,11 @@ Downloaded cross-section files
     
     
     fetch('CH4_S' ,6 ,1 ,min_wavenumber ,max_wavenumber) # 12CH4
-#    fetch('CH4_S' ,6 ,2 ,min_wavenumber ,max_wavenumber) # 13CH4
+    fetch('13CH4_S' ,6 ,2 ,min_wavenumber ,max_wavenumber) # 13CH4
     fetch('CO2_S',2,1,min_wavenumber, max_wavenumber) # 12CO2
-#    fetch('CO2_S',2,2,min_wavenumber, max_wavenumber) # 12CO2
+    fetch('13CO2_S',2,2,min_wavenumber, max_wavenumber) # 12CO2
     fetch('H2O_S',1,1,min_wavenumber,max_wavenumber) # H2O
-#    fetch('H2O_S',1,4,min_wavenumber,max_wavenumber) # H2O
+    fetch('HDO_S',1,4,min_wavenumber,max_wavenumber) # H2O
     return 0
 # end of function GetCrossSections
 
@@ -181,9 +181,14 @@ computs the cross-sections with broadening and line-mixing
         wavenumber_resolution = self.spectral_resolution
 
 
-        self.grid, self.CH4 = absorptionCoefficient_Voigt(SourceTables='CH4_S', WavenumberRange=[ min_wavenumber ,max_wavenumber ] ,WavenumberStep = wavenumber_resolution ,Environment={'p':pressure_ ,'T':temperature_},IntensityThreshold=1e-30)
+        self.grid, self.CH4 = absorptionCoefficient_Voigt(Components=[(6,1)], SourceTables='CH4_S', WavenumberRange=[ min_wavenumber ,max_wavenumber ] ,WavenumberStep = wavenumber_resolution ,Environment={'p':pressure_ ,'T':temperature_},IntensityThreshold=1e-30)
+        self.grid, self.CH4_13 = absorptionCoefficient_Voigt(Components=[(6,2)], SourceTables='13CH4_S', WavenumberRange=[ min_wavenumber ,max_wavenumber ] ,WavenumberStep = wavenumber_resolution ,Environment={'p':pressure_ ,'T':temperature_},IntensityThreshold=1e-30)
+        
         nu_, self.CO2 = absorptionCoefficient_Voigt(SourceTables='CO2_S', WavenumberRange=[ min_wavenumber ,max_wavenumber ] ,WavenumberStep = wavenumber_resolution ,Environment={'p':pressure_ ,'T':temperature_},IntensityThreshold=1e-30)
+        
+        nu_, self.CO2_13 = absorptionCoefficient_Voigt(SourceTables='13CO2_S', WavenumberRange=[ min_wavenumber ,max_wavenumber ] ,WavenumberStep = wavenumber_resolution ,Environment={'p':pressure_ ,'T':temperature_},IntensityThreshold=1e-30)
         nu_, self.H2O = absorptionCoefficient_Voigt(SourceTables='H2O_S', WavenumberRange=[ min_wavenumber ,max_wavenumber ] ,WavenumberStep = wavenumber_resolution ,Environment={'p':pressure_ ,'T':temperature_},IntensityThreshold=1e-30)
+        nu_, self.HDO = absorptionCoefficient_Voigt(SourceTables='HDO_S', WavenumberRange=[ min_wavenumber ,max_wavenumber ] ,WavenumberStep = wavenumber_resolution ,Environment={'p':pressure_ ,'T':temperature_},IntensityThreshold=1e-30)
         return self
     # end of method ComputeCrossSections
 
@@ -213,4 +218,3 @@ initializes and saves solar spectra object and corresponding spectral grid
 #        self.solar_spectrum = self.GetSolarSpectrum()
     # end of method __init__
 # end of class HitranSpectra
-
