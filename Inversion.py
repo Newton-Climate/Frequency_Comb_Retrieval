@@ -128,8 +128,12 @@ def InvertParallel( inversion_function, num_measurements):
     result = pool.map( inversion_function ,[i for i in range(num_measurements )])
 
     # order results by time stamp
-    result = sorted(result ,lambda x: x[-1])
-    return np.array(result)
+    try:
+        result = sorted(result ,key = lambda x: x[-1])
+        print('Done sorting output')
+        return np.array(result)
+    except:
+        return result
 
     
     
@@ -138,7 +142,8 @@ def InvertParallel( inversion_function, num_measurements):
     
 
 
-    
+ch4_min_wavenumber, ch4_max_wavenumber = 6055, 6120
+co2_min_wavenumber, co2_max_wavenumber = 6180, 6250    
 file = 'testdata_2.h5'
 data = CombData(file)
 legendre_polynomial_degree = 20
@@ -160,15 +165,20 @@ truth = {
     }
 
 truth = DictToArray(truth)
+measurement_index = 50
+ch4_data = Measurement( measurement_index ,ch4_min_wavenumber ,ch4_max_wavenumber ,data)
+current_data = Measurement( measurement_index ,co2_min_wavenumber ,co2_max_wavenumber ,data)
+
 
 try:
     spectra = HitranSpectra( current_data)
 except:
     GetCrossSections( data.min_wavenumber ,data.max_wavenumber)
-#    spectra = HitranSpectra( current_data)
-#ch4_spectra = HitranSpectra(ch4_data)
-#co2_ans , k_co2 = LinearInversion( truth ,current_data ,spectra)
-#ch4_ans, k_ch4 = LinearInversion( truth ,ch4_data ,ch4_spectra)
+    spectra = HitranSpectra( current_data, legendre_polynomial_degree = 40)
+ch4_spectra = HitranSpectra(ch4_data)
+
+co2_ans = LinearInversion( truth ,current_data ,spectra)
+ch4_ans = LinearInversion( truth ,ch4_data ,ch4_spectra)
 
 
 #np.savez('fitting_data' ,co2_obs = current_data.FC, ch4_obs = ch4_data.FC, co2_grid = #current_data.spectral_grid, ch4_grid = ch4_data.spectral_grid, co2_k = k_co2, ch4_k = k_ch4, #ch4_ans = ch4_ans, co2_ans = co2_ans)
@@ -178,6 +188,5 @@ except:
 #np.savez('CH4_linear_inversion', CO2 = CO2, H2O = H2O, CH4 = CH4)
 global my_func
 my_func = MakeInversionFunction( data, truth)
-
-
 result = InvertParallel( my_func, data.num_measurements)
+
