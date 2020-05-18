@@ -5,6 +5,8 @@ from ForwardModel import *
 from ReadData import *
 
 
+num_species = 4
+_H2O_index ,_CH4_index ,_CO2_index ,_HDO_index = [i for i in range(num_species)]
 
 def CalculateChi2( modelled_measurement ,measurement ,state_vector):
     degrees_of_freedom = measurement.size - state_vector.size
@@ -24,7 +26,7 @@ def LinearInversion( state_vector ,measurement_object ,hitran_object):
     modelled_measurement = np.exp (k.dot(ans))
 
 
-    return ans
+    return ans, modelled_measurement
 
 def TestLinearInversion( test_state_vector ,true_state_vector ,measurement_object ,hitran_object):
     
@@ -99,25 +101,37 @@ def MakeInversionFunction( dataset_object, initial_guess):
     num_measurements = dataset_object.num_measurements
     ch4_min_wavenumber, ch4_max_wavenumber = 6055, 6120
     co2_min_wavenumber, co2_max_wavenumber = 6180, 6250
+    hdo_min_wavenumber, hdo_max_wavenumber = 6310, 6380
     global Invert
     
 
     def Invert( measurement_index):
-        print(measurement_index)
+#        print(measurement_index)
         output_vector = np.empty( num_species + 2)
 
+        
+        #Get the measurements and sub-set to corresponding wavenumber regions
         ch4_measurement_object = Measurement( measurement_index ,ch4_min_wavenumber ,ch4_max_wavenumber ,dataset_object)
         co2_measurement_object = Measurement( measurement_index ,co2_min_wavenumber ,co2_max_wavenumber ,dataset_object)
+        hdo_measurement_object = Measurement( measurement_index ,hdo_min_wavenumber ,hdo_max_wavenumber ,dataset_object)
+
+        #Calculate the line intensities and shapes
         ch4_spectra_object = HitranSpectra( ch4_measurement_object)
         co2_spectra_object = HitranSpectra( co2_measurement_object )
+        hdo_spectra_object = HitranSpectra( hdo_measurement_object )
 
+        # Perform linear inversions
         ch4_state_vector  = LinearInversion( initial_guess ,ch4_measurement_object ,ch4_spectra_object)
         co2_state_vector  = LinearInversion( initial_guess ,co2_measurement_object ,co2_spectra_object)
+        hdo_state_vector  = LinearInversion( initial_guess ,hdo_measurement_object ,hdo_spectra_object)
+        
+        
 
         # assign to output vector
-        output_vector[ H2O_index ] = co2_state_vector[ H2O_index ]
-        output_vector[ CH4_index ] = ch4_state_vector[ CH4_index ]
-        output_vector[ CO2_index ] = co2_state_vector[ CO2_index ]
+        output_vector[ _H2O_index ] = co2_state_vector[ _H2O_index ]
+        output_vector[ _CH4_index ] = ch4_state_vector[ _CH4_index ]
+        output_vector[ _CO2_index ] = co2_state_vector[ _CO2_index ]
+        output_vector[ _HDO_index ] = hdo_state_vector[ _HDO_index ]
         output_vector[ num_species ] = ch4_measurement_object.VCD # put that in the output just in case
         output_vector[ num_species + 1] = ch4_measurement_object.time
         return output_vector
@@ -143,10 +157,11 @@ def InvertParallel( inversion_function, num_measurements):
 
 
 ch4_min_wavenumber, ch4_max_wavenumber = 6055, 6120
-co2_min_wavenumber, co2_max_wavenumber = 6180, 6250    
+co2_min_wavenumber, co2_max_wavenumber = 6180, 6250
+hdo_min_wavenumber, hdo_max_wavenumber = 6310, 6380
 file = 'testdata_2.h5'
 data = CombData(file)
-legendre_polynomial_degree = 20
+legendre_polynomial_degree = 40
 vcd = 1
 
 
@@ -154,6 +169,7 @@ guess = {
     'VMR_H2O' : 0.02 * vcd,
     'VMR_CH4' : 3000e-9 * vcd,
     'VMR_CO2' : 400e-6 * vcd,
+    'VMR_HDO' : 0.01 * vcd,
     'shape_parameter' : np.ones( legendre_polynomial_degree +1 )
     }
 
@@ -161,27 +177,38 @@ truth = {
     'VMR_H2O' : 0.02 * vcd,
     'VMR_CH4' : 2000e-9 * vcd,
     'VMR_CO2' : 400e-6 * vcd,
+    'VMR_HDO' : 0.001 * vcd,
     'shape_parameter' : np.ones( legendre_polynomial_degree + 1 )*0.1
     }
 
 truth = DictToArray(truth)
+
+
 measurement_index = 50
 ch4_data = Measurement( measurement_index ,ch4_min_wavenumber ,ch4_max_wavenumber ,data)
 current_data = Measurement( measurement_index ,co2_min_wavenumber ,co2_max_wavenumber ,data)
+hdo_data = Measurement(measurement_index, hdo_min_wavenumber, hdo_max_wavenumber, data)
 
 
 try:
     spectra = HitranSpectra( current_data)
 except:
     GetCrossSections( data.min_wavenumber ,data.max_wavenumber)
-    spectra = HitranSpectra( current_data, legendre_polynomial_degree = 40)
-ch4_spectra = HitranSpectra(ch4_data)
+    spectra = HitranSpectra( current_data)
+#ch4_spectra = HitranSpectra(ch4_data)
+#hdo_spectra = HitranSpectra( hdo_data)
 
-co2_ans = LinearInversion( truth ,current_data ,spectra)
-ch4_ans = LinearInversion( truth ,ch4_data ,ch4_spectra)
+func = MakeInversionFunction( data, truth)
+result = func( measurement_index)
 
 
-#np.savez('fitting_data' ,co2_obs = current_data.FC, ch4_obs = ch4_data.FC, co2_grid = #current_data.spectral_grid, ch4_grid = ch4_data.spectral_grid, co2_k = k_co2, ch4_k = k_ch4, #ch4_ans = ch4_ans, co2_ans = co2_ans)
+
+#co2_ans, co2_model = LinearInversion( truth ,current_data ,spectra)
+#ch4_ans, ch4_model = LinearInversion( truth ,ch4_data ,ch4_spectra)
+#hdo_ans, hdo_model = LinearInversion(truth, hdo_data, hdo_spectra)
+
+
+#np.savez('fitting_data' ,co2_obs = current_data.FC, ch4_obs = ch4_data.FC, co2_grid = current_data.spectral_grid, ch4_grid = ch4_data.spectral_grid, co2_model = co2_model, ch4_model = ch4_model, #ch4_ans = ch4_ans, co2_ans = co2_ans, hdo_ans = hdo_ans, hdo_obs = hdo_data.FC, hdo_grid = hdo_data.spectral_grid, hdo_model = hdo_model)
 
 
 #H2O, CH4, CO2 = InvertAllData( truth ,data ,spectra)
