@@ -7,8 +7,8 @@ import pdb
 
 # define index
 
-num_species = 3
-H2O_index ,CH4_index ,CO2_index = 0 ,1 ,2 
+num_species = 4
+_H2O_index ,_CH4_index ,_CO2_index ,_HDO_index = [i for i in range(num_species)]
 
 def DictToArray( input):
     output = np.hstack( (input[key] for key in input) )
@@ -32,9 +32,11 @@ Outputs:
     cross_sections = hitran_object
     
     if type(state_vector) == np.ndarray:
-        VMR_CH4 = state_vector[ CH4_index ]
-        VMR_CO2 = state_vector[ CO2_index ]
-        VMR_H2O = state_vector[ H2O_index ]
+        VMR_CH4 = state_vector[ _CH4_index ]
+        VMR_CO2 = state_vector[ _CO2_index ]
+        VMR_H2O = state_vector[ _H2O_index ]
+        #VMR_13CO2 = state_vector[ _13CO2_index ]
+        VMR_HDO = state_vector[ _HDO_index ]
         shape_parameter_index = [i for i in range(num_species , len(state_vector))]
         shape_parameter = state_vector[ shape_parameter_index ]
 
@@ -44,12 +46,15 @@ Outputs:
         VMR_CH4 = state_vector[ 'VMR_CH4' ]
         VMR_CO2 = state_vector[ 'VMR_CO2' ]
         VMR_H2O = state_vector[ 'VMR_H2O' ]
+        #VMR_13CO2 = state_vector[ 'VMR_13CO2' ]
+        VMR_HDO = state_vector[ 'VMR_HDO' ]
 
 
         
     VCD_dry = measurement_object.VCD
-    optical_depth = VCD_dry * (VMR_CH4 * cross_sections.CH4 + VMR_H2O * cross_sections.H2O + VMR_CO2 * cross_sections.CO2)
-    transmission = np.exp( -optical_depth)
+    optical_depth = VCD_dry * (VMR_CH4 * cross_sections._CH4 + VMR_H2O * cross_sections._H2O + VMR_CO2 * cross_sections._CO2)
+    optical_depth_isotopes = VCD_dry * (VMR_HDO * cross_sections._HDO)
+    transmission = np.exp( -optical_depth - optical_depth_isotopes )
     return transmission, optical_depth
 # end of function CalculateTransmission
 
@@ -108,9 +113,11 @@ Outputs:
 
 def ArrayToDict( input_vector ):
     output_dict = {
-        'VMR_H2O' : input_vector[ H2O_index],
-        'VMR_CH4' : input_vector[ CH4_index ],
-        'VMR_CO2' : input_vector[ CO2_index ],
+        'VMR_H2O' : input_vector[ _H2O_index],
+        'VMR_CH4' : input_vector[ _CH4_index ],
+        'VMR_CO2' : input_vector[ _CO2_index ],
+        'VMR_HDO' : input_vector[ _HDO_index],
+        #'VMR_13CO2' : input_vector[ _13CO2_index ],
         'shape_parameter' : input_vector[ num_species :]
     }
     return output_dict
@@ -185,14 +192,19 @@ jacobian: np.array that contains the jacobian that should be (num_spectral_point
 
         # assign variable names for jacobian calculation 
         vcd = measurement_object.VCD        
-        CO2_cross_sections = hitran_object.CO2
-        H2O_cross_sections = hitran_object.H2O
-        CH4_cross_sections = hitran_object.CH4
+        _CO2_cross_sections = hitran_object._CO2
+        _H2O_cross_sections = hitran_object._H2O
+        _CH4_cross_sections = hitran_object._CH4
+        #_13CO2_cross_sections = hitran_object._13CO2
+        _HDO_cross_sections = hitran_object._HDO
 
         # fill final jacobian with intensity jacobian
-        jacobian[:, H2O_index] = DownSampleInstrument(hitran_object.grid , -1 * vcd * H2O_cross_sections ,measurement_object.spectral_grid)
-        jacobian[: ,CH4_index] = DownSampleInstrument(hitran_object.grid ,-1 * CH4_cross_sections * vcd ,measurement_object.spectral_grid)
-        jacobian[: ,CO2_index] = DownSampleInstrument(hitran_object.grid ,-1 * CO2_cross_sections * vcd ,measurement_object.spectral_grid)
+        jacobian[:, _H2O_index] = DownSampleInstrument(hitran_object.grid , -1 * _H2O_cross_sections * vcd,measurement_object.spectral_grid)
+        jacobian[: ,_CH4_index] = DownSampleInstrument(hitran_object.grid ,-1 * _CH4_cross_sections * vcd ,measurement_object.spectral_grid)
+        jacobian[: ,_CO2_index] = DownSampleInstrument(hitran_object.grid ,-1 * _CO2_cross_sections * vcd ,measurement_object.spectral_grid)
+        jacobian[:, _HDO_index] = DownSampleInstrument(hitran_object.grid , -1 * _HDO_cross_sections * vcd,measurement_object.spectral_grid)
+        #jacobian[: ,_13CO2_index] = DownSampleInstrument(hitran_object.grid ,-1 * _13CO2_cross_sections * vcd ,measurement_object.spectral_grid)
+        
 
         # Fill final jacobian with polynomial jacobian
         i=0
