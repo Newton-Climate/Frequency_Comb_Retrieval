@@ -1,13 +1,18 @@
-from ReadData import *
+import numpy as np
 from scipy.interpolate import interp1d
 from scipy.special import legendre
-from numpy.linalg import inv
+
 import pdb
+#from inversion import TestLinearInversion
 
+# define index
 
-legendre_polynomial_degree = 20
-num_species = 3
-VMR_H2O_index ,VMR_CH4_index ,VMR_CO2_index ,shape_parameter_index = 0 ,1 ,2 ,[i for i in range(3, num_species + legendre_polynomial_degree + 1)]
+num_species = 4
+_H2O_index ,_CH4_index ,_CO2_index ,_HDO_index = [i for i in range(num_species)]
+
+def DictToArray( input):
+    output = np.hstack( (input[key] for key in input) )
+    return output
 
 
 def CalculateTransmission(state_vector ,measurement_object ,hitran_object):
@@ -27,9 +32,12 @@ Outputs:
     cross_sections = hitran_object
     
     if type(state_vector) == np.ndarray:
-        VMR_CH4 = state_vector[ VMR_CH4_index ]
-        VMR_CO2 = state_vector[ VMR_CO2_index ]
-        VMR_H2O = state_vector[ VMR_H2O_index ]
+        VMR_CH4 = state_vector[ _CH4_index ]
+        VMR_CO2 = state_vector[ _CO2_index ]
+        VMR_H2O = state_vector[ _H2O_index ]
+        #VMR_13CO2 = state_vector[ _13CO2_index ]
+        VMR_HDO = state_vector[ _HDO_index ]
+        shape_parameter_index = [i for i in range(num_species , len(state_vector))]
         shape_parameter = state_vector[ shape_parameter_index ]
 
 
@@ -38,18 +46,22 @@ Outputs:
         VMR_CH4 = state_vector[ 'VMR_CH4' ]
         VMR_CO2 = state_vector[ 'VMR_CO2' ]
         VMR_H2O = state_vector[ 'VMR_H2O' ]
+        #VMR_13CO2 = state_vector[ 'VMR_13CO2' ]
+        VMR_HDO = state_vector[ 'VMR_HDO' ]
 
 
         
     VCD_dry = measurement_object.VCD
-    optical_depth = VCD_dry * (VMR_CH4 * cross_sections.CH4 + VMR_H2O * cross_sections.H2O + VMR_CO2 * cross_sections.CO2)
-    transmission = np.exp( -optical_depth)
+    optical_depth = VCD_dry * (VMR_CH4 * cross_sections._CH4 + VMR_H2O * cross_sections._H2O + VMR_CO2 * cross_sections._CO2)
+    optical_depth_isotopes = VCD_dry * (VMR_HDO * cross_sections._HDO)
+    transmission = np.exp( -optical_depth - optical_depth_isotopes )
     return transmission, optical_depth
 # end of function CalculateTransmission
 
 
 def DownSampleInstrument( input_spectral_grid ,input_spectra ,output_spectral_grid ):
     '''
+
 Function for downsampling hitran grid to instrument grid.
 Interpolates x, y points and evaluates at new grid x_new
 
@@ -69,7 +81,7 @@ outputs:
 
 
 
-def MakePolynomialGrid( polynomial_degree ,input_grid ,min_wavenumber, max_wavenumber):
+def CalcPolynomialTerm( max_legendre_polynomial_degree ,shape_parameters , wavenumber_grid_length ):
     '''
 Makes the Legendre Polynomial Array used in ForwardModel and its corresponding Jacobian. 
 Evaluates polynomial and derivative only over the given window (between min and max_wavenumber).
@@ -86,61 +98,27 @@ Outputs:
 2. derivative_values_out: np.array that contains the evaluated polynomial derivative 
     '''
 
-    # Find index of corresponding spectral window
-    window_indexes = np.array( np.where( (input_grid > min_wavenumber) & (input_grid < max_wavenumber) ))
-    window_indexes = window_indexes[0,:]
-    left_window_index ,right_window_index = window_indexes[0] ,window_indexes[-1]
-    
-    def GetPolynomialJacobian(_coefficients ,_spectral_grid):
-        '''
-calculate the polynomial jacobian with respect to the shape parameter.
-p(lambda) = sum_i alpha_i * a_i * lambda^i for i = 0:n
-partial p / partial alpha = sum_i a_i * lambda^i for i=0:n
-n = polynomial_degree, lambda = wavenumber, a_i = ith legendre coefficient, alpha_i = ith shape parameter
-'''
+    # define the domain of Legendre polynomial
+    x = np.linspace(-1 ,1 ,wavenumber_grid_length )
+    polynomial_term = np.zeros( x.shape )
+
+    for degree in range( max_legendre_polynomial_degree+1):
 
 
-        num_polynomial_coefficients = np.shape(_coefficients)[0]
-        num_spectral_points  = np.shape( _spectral_grid )[0]
-        derivative_array = np.zeros( ( num_spectral_points , num_polynomial_coefficients ))
-
-        # evaluate 
-        for n in range( num_polynomial_coefficients ):
-            degree = num_polynomial_coefficients -n - 1 # -1 comes from 0 indexing        
-            derivative_array[ :, n ] = _coefficients[n] * _spectral_grid ** degree
-        # end of for-loop
-        
-        return derivative_array
-# end of function 
-
-
-    polynomial_function = legendre( polynomial_degree ) # generate polynomial object
-    legendre_coefficients = polynomial_function.coefficients
-    
-    shifted_grid = input_grid - np.mean(input_grid) # center spectral grid at 0
-    # Evaluate Jacobian of polymnomial with respect to shape parameter
-    polynomial_derivative_values = GetPolynomialJacobian( legendre_coefficients ,shifted_grid)
-#    pdb.set_trace()
-    
-    # initialize output arrays
-    polynomial_values_out = np.zeros( shifted_grid.shape)
-    derivative_values_out = np.zeros( (np.size(shifted_grid) , np.size(legendre_coefficients) )) 
-    polynomial_values_out[ left_window_index : right_window_index ] = polynomial_function( shifted_grid[ left_window_index : right_window_index ] )
-
-    derivative_values_out[ left_window_index : right_window_index ,: ] = polynomial_derivative_values[ left_window_index : right_window_index ,: ]
-#    derivative_values_out = polynomial_derivative_values
-
-
-    return polynomial_values_out , derivative_values_out
+        p = legendre( degree)
+        polynomial_term += shape_parameters[ degree ] * p(x)
+    return polynomial_term
 # end of function EvaluatePolynomial
 
 
 def ArrayToDict( input_vector ):
     output_dict = {
-        'VMR_H2O' : input_vector[ VMR_H2O_index],
-        'VMR_CH4' : input_vector[ VMR_CH4_index ],
-        'VMR_CO2' : input_vector[ VMR_CO2_index ],
-        'shape_parameter' : input_vector[ shape_parameter_index ]
+        'VMR_H2O' : input_vector[ _H2O_index],
+        'VMR_CH4' : input_vector[ _CH4_index ],
+        'VMR_CO2' : input_vector[ _CO2_index ],
+        'VMR_HDO' : input_vector[ _HDO_index],
+        #'VMR_13CO2' : input_vector[ _13CO2_index ],
+        'shape_parameter' : input_vector[ num_species :]
     }
     return output_dict
 
@@ -165,26 +143,19 @@ outputs:
 
     
     transmission, optical_depth = CalculateTransmission( state_vector ,measurement_object ,hitran_object)
-    extinction = DownSampleInstrument( hitran_object.grid ,transmission ,measurement_object.spectral_grid )
+    transmission = DownSampleInstrument( hitran_object.grid ,transmission ,measurement_object.spectral_grid )
     
-    try:
-        shape_parameter = state_vector['shape_parameter']
-    except:
-        shape_parameter = state_vector[ shape_parameter_index ]
-        
-    evaluated_polynomial, evaluated_derivative  = MakePolynomialGrid( legendre_polynomial_degree ,measurement_object.spectral_grid ,5952.4 ,6230.5 )
+    shape_parameter_index = [i for i in range(num_species ,len(state_vector))]
+    shape_parameter = state_vector[ shape_parameter_index ]
+
+    polynomial_term = CalcPolynomialTerm( legendre_polynomial_degree ,shape_parameter , len(hitran_object.grid))
+    polynomial_term = DownSampleInstrument( hitran_object.grid ,polynomial_term ,measurement_object.spectral_grid )
+#    pdb.set_trace()
+
     
-    f_out = np.log(extinction) + evaluated_polynomial
-    return f_out ,transmission ,evaluated_polynomial
+    f_out = np.log(transmission) + polynomial_term
+    return f_out, transmission ,polynomial_term
 
-def DictToArray( input_dictionary ):
-    output_vector = np.empty(( num_species + legendre_polynomial_degree + 1 ))
-
-    output_vector[0] = input_dictionary[ 'VMR_H2O']
-    output_vector[1] = input_dictionary[ 'VMR_CH4']
-    output_vector[2] = input_dictionary[ 'VMR_CO2']
-    output_vector[3:] = input_dictionary[ 'shape_parameter']
-    return output_vector
         
     
 
@@ -200,43 +171,49 @@ measurement_object: Measurement class that contains the observations from freque
 hitran_object: HitranSpectra class that contains the hitran cross-sections
 Linear=True: Boul that tells function to calculate analytically or numerically
 
-outputs:b
+outputs:
 jacobian: np.array that contains the jacobian that should be (num_spectral_points X num_state_vector_elements)
 '''
-    
 
 
+#    f ,transmission ,evaluated_polynomial = ForwardModel( state_vector ,measurement_object ,hitran_object )
 
-
-    f ,transmission ,evaluated_polynomial = ForwardModel( state_vector ,measurement_object ,hitran_object )
-
-    if type(state_vector) == dict:
-        state_vector = DictToArray( state_vector )
         
-    jacobian = np.empty( (f.size ,len(state_vector)) ) # allocate memory for output jacobian
-    # index for shape parameters for legendre 
+    jacobian = np.empty( (measurement_object.spectral_grid.size ,len(state_vector)) ) # allocate memory for output jacobian
+    # index for shape parameters for legendre
+    shape_parameter_index = [i for i in range(num_species , len(state_vector))]
     shape_parameter = state_vector[ shape_parameter_index ] 
-    evaluated_poblynomial ,evaluated_polynomial_derivative = MakePolynomialGrid( legendre_polynomial_degree ,hitran_object.grid ,5952.4 ,6230.5 ) # evaluate legendre polynomial
+
     
     # Calculate jacobian analytically 
     if linear:
 
+#        evaluated_polynomial = CalcPolynomialTerm( legendre_polynomial_degree ,shape_parameter , len(hitran_object.grid) )
+
         # assign variable names for jacobian calculation 
-        vcd = measurement_object.VCD
-        CO2_cross_sections = hitran_object.CO2
-        H2O_cross_sections = hitran_object.H2O
-        CH4_cross_sections = hitran_object.CH4
+        vcd = measurement_object.VCD        
+        _CO2_cross_sections = hitran_object._CO2
+        _H2O_cross_sections = hitran_object._H2O
+        _CH4_cross_sections = hitran_object._CH4
+        #_13CO2_cross_sections = hitran_object._13CO2
+        _HDO_cross_sections = hitran_object._HDO
 
         # fill final jacobian with intensity jacobian
-        jacobian[: ,0] = DownSampleInstrument(hitran_object.grid , -1*transmission * vcd * H2O_cross_sections ,measurement_object.spectral_grid)
-        jacobian[: ,1] = DownSampleInstrument(hitran_object.grid ,-1 * CH4_cross_sections * vcd * transmission,measurement_object.spectral_grid)
-        jacobian[: ,2] = DownSampleInstrument(hitran_object.grid ,-1 * CO2_cross_sections * vcd * transmission,measurement_object.spectral_grid)
+        jacobian[:, _H2O_index] = DownSampleInstrument(hitran_object.grid , -1 * _H2O_cross_sections * vcd,measurement_object.spectral_grid)
+        jacobian[: ,_CH4_index] = DownSampleInstrument(hitran_object.grid ,-1 * _CH4_cross_sections * vcd ,measurement_object.spectral_grid)
+        jacobian[: ,_CO2_index] = DownSampleInstrument(hitran_object.grid ,-1 * _CO2_cross_sections * vcd ,measurement_object.spectral_grid)
+        jacobian[:, _HDO_index] = DownSampleInstrument(hitran_object.grid , -1 * _HDO_cross_sections * vcd,measurement_object.spectral_grid)
+        #jacobian[: ,_13CO2_index] = DownSampleInstrument(hitran_object.grid ,-1 * _13CO2_cross_sections * vcd ,measurement_object.spectral_grid)
+        
 
         # Fill final jacobian with polynomial jacobian
-        i=0        
+        i=0
+        x = np.linspace( -1, 1, hitran_object.grid.size)
         for index in shape_parameter_index:
+            p = legendre(i)
+            polynomial_jacobian = p(x)
 #            pdb.set_trace()
-            jacobian[ : ,index ] = DownSampleInstrument( hitran_object.grid , evaluated_polynomial_derivative[ :, i ], measurement_object.spectral_grid )
+            jacobian[ : ,index ] = DownSampleInstrument( hitran_object.grid , polynomial_jacobian, measurement_object.spectral_grid )
             i += 1
         # end of for-loop
     # end of linear if-conditional
@@ -253,37 +230,18 @@ jacobian: np.array that contains the jacobian that should be (num_spectral_point
             df ,transmission ,evaluated_polynomial = ForwardModel( dx ,measurement_object ,hitran_object )
 
             df_dx = (df - f) / ( dx[ perturbation_index ] - x_0[ perturbation_index ])
-            state_vector = ArrayToDict( state_vector )
+
+
+
             return df_dx
     # end of function CalculateDerivative
 
     # loop through each state vector element and calculate derivative via finite difference
-        for state_vector_index in range( len( state_vector )  ):
+        for state_vector_index in range( len( state_vector)  ):
+#            print(len(state_vector))
+#            print(state_vector_index)
             jacobian[ : , state_vector_index ] = CalculateDerivative( state_vector_index ,state_vector)
         # end of for-loop
         
     return jacobian
 # end of function CalculateJacobian
-
-
-
-
-
-
-truth = {
-    'VMR_H2O' : 0.2,
-    'VMR_CH4' : 2000e-9,
-    'VMR_CO2' : 500e-6,
-    'shape_parameter' : 2*np.ones( legendre_polynomial_degree + 1)
-    }
-
-
-file = 'testdata_2.h5'
-data = CombData(file)
-current_data = Measurement( 1000 , data)
-GetCrossSections( current_data.min_wavenumber ,current_data.max_wavenumber)
-spectra = HitranSpectra( current_data)
-
-k = ComputeJacobian( truth ,current_data, spectra, linear = True)
-f, transmission ,polynomial_grid = ForwardModel( truth ,current_data ,spectra)
-x = inv(k.T.dot(k)).dot(k.T).dot(f)

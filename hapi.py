@@ -53,31 +53,41 @@ if 'io' in sys.modules: # define open using Linux-style line endings
 else:
     open_ = open
 
-HAPI_VERSION = '1.1.0.8.7' 
-__version__ = HAPI_VERSION
-# CHANGES:
-# FIXED GRID BUG (ver. 1.1.0.1)
-# FIXED OUTPUT FORMAT FOR CROSS-SECTIONS (ver. 1.1.0.1)
-# ADDED CPF BY SCHREIER (JQSRT_112_2011) (ver. 1.1.0.2) 
-# OPTIMIZED EXPRESSION EVALUATIONS FOR SELECT (ver. 1.1.0.3) 
-# ADDED SUPPORT FOR MIXTURES (ver. 1.1.0.4) 
-# ADDED SUPPORT FOR USER-DEFINED ENV DEPENDENCES (ver. 1.1.0.5) 
-# ADDED PROFILE SELECTION (ALPHA) (ver. 1.1.0.6) 
-# ADDED METADATA FOR HTP, FIXED NORMALIZATION IN CONVOLVESPECTRUMSAME (ver. 1.1.0.7) 
-# FIXED A "LONELY HEADER" BUG IN CACHE2STORAGE (ver. 1.1.0.7.1) 
-# ADDED SUPPORT FOR PHOSGENE AND CYANOGEN (ver. 1.1.0.7.2) 
-# OPTIMIZED STORAGE2CACHE (by Nils-Holger Löber) (ver. 1.1.0.7.3) 
-# ADDED SKIPABLE PARAMETERS IN HEADERS (ver. 1.1.0.7.4) 
-# ADDED SUPPORT FOR FORTRAN D-NOTATION (ver. 1.1.0.7.5)
-# ADDED SUPPORT FOR WEIRD-FORMATTED INTENSITY VALUES E.G. "2.700-164" (ver. 1.1.0.7.6)
-# ADDED TIPS-2017 (ver. 1.1.0.8)
-# ADDED SUPPORT FOR CUSTOM EXTENSIONS OF THE DATA FILES (ver. 1.1.0.8.1)
-# FIXED LINK TO (2,0) ISOTOPOLOGUE IN TIPS-2017 (ver. 1.1.0.8.2)
-# ADDED SAVEHEADER FUNCTION (ver. 1.1.0.8.3)
-# ADDED METADATA FOR SF6 (ver. 1.1.0.8.4)
-# ADDED D2O ISOTOPOLOGUE OF WATER TO DESCRIPTION (ver. 1.1.0.8.5)
-# FIXED LINE ENDINGS IN STORAGE2CACHE AND QUERYHITRAN (ver. 1.1.0.8.6)
-# ADDED SUPPORT FOR NON-INTEGER LOCAL ISO IDS (ver. 1.1.0.8.7)
+HAPI_VERSION = '1.1.0.9.7'; __version__ = HAPI_VERSION
+HAPI_HISTORY = [
+'FIXED GRID BUG (ver. 1.1.0.1)',
+'FIXED OUTPUT FORMAT FOR CROSS-SECTIONS (ver. 1.1.0.1)',
+'ADDED CPF BY SCHREIER (JQSRT_112_2011) (ver. 1.1.0.2)',
+'OPTIMIZED EXPRESSION EVALUATIONS FOR SELECT (ver. 1.1.0.3)',
+'ADDED SUPPORT FOR MIXTURES (ver. 1.1.0.4)',
+'ADDED SUPPORT FOR USER-DEFINED ENV DEPENDENCES (ver. 1.1.0.5)',
+'ADDED PROFILE SELECTION (ALPHA) (ver. 1.1.0.6)',
+'ADDED METADATA FOR HTP, FIXED NORMALIZATION IN CONVOLVESPECTRUMSAME (ver. 1.1.0.7)',
+'FIXED A "LONELY HEADER" BUG IN CACHE2STORAGE (ver. 1.1.0.7.1)',
+'ADDED SUPPORT FOR PHOSGENE AND CYANOGEN (ver. 1.1.0.7.2)',
+'OPTIMIZED STORAGE2CACHE (by Nils-Holger Loeber) (ver. 1.1.0.7.3)',
+'ADDED SKIPABLE PARAMETERS IN HEADERS (ver. 1.1.0.7.4)',
+'ADDED SUPPORT FOR FORTRAN D-NOTATION (ver. 1.1.0.7.5)',
+'ADDED SUPPORT FOR WEIRD-FORMATTED INTENSITY VALUES E.G. "2.700-164" (ver. 1.1.0.7.6)',
+'ADDED TIPS-2017 (ver. 1.1.0.8)',
+'ADDED SUPPORT FOR CUSTOM EXTENSIONS OF THE DATA FILES (ver. 1.1.0.8.1)',
+'FIXED LINK TO (2,0) ISOTOPOLOGUE IN TIPS-2017 (ver. 1.1.0.8.2)',
+'ADDED SAVEHEADER FUNCTION (ver. 1.1.0.8.3)',
+'ADDED METADATA FOR SF6 (ver. 1.1.0.8.4)',
+'ADDED D2O ISOTOPOLOGUE OF WATER TO DESCRIPTION (ver. 1.1.0.8.5)',
+'FIXED LINE ENDINGS IN STORAGE2CACHE AND QUERYHITRAN (ver. 1.1.0.8.6)',
+'ADDED SUPPORT FOR NON-INTEGER LOCAL ISO IDS (ver. 1.1.0.8.7)',
+'FIXED PARAMETER NAME CASE BUG (by Robert J. Hargreaves) (ver. 1.1.0.8.8)',
+'CAST LOCAL_ISO_ID=0 TO 10 FOR CARBON DIOXIDE (ver. 1.1.0.8.9)',
+'USING NUMPY.ARRAYS FOR NUMERIC COLUMNS OF LOCAL_TABLE_CACHE (ver. 1.1.0.9.0)',
+'ADDED DESCRIPTIONS FOR BROADENING BY H2O (ver. 1.1.0.9.1)',
+'ADDED PROXY SUPPORT IN FETCH AND FETCH_BY_IDS (ver. 1.1.0.9.2)',
+'ADDED LIMIT FOR NUMBER OF LINES DURING TABLE READ (ver. 1.1.0.9.3)',
+'FIXED ABSOLUTE PATH BUG IN TABLE NAMES (ver. 1.1.0.9.4)',
+'CORRECTED ABUNDANCE OF THE HD ISOTOPOLOGUE (ver. 1.1.0.9.5)',
+'ADDED UNIFIED INTERFACES FOR ABSCOEF AND XSC CALCULATIONS (ver. 1.1.0.9.6)',
+'ADDED PARLISTS FOR LINE MIXING (VOIGT AND SDVOIGT) (ver. 1.1.0.9.7)',
+]
 
 # version header
 print('HAPI version: %s' % HAPI_VERSION)
@@ -129,6 +139,10 @@ if GLOBAL_DEBUG:
 else:
    GLOBAL_HOST = 'http://hitran.org'
 
+VARIABLES['PROXY'] = {}
+# EXAMPLE OF PROXY:
+# VARIABLES['PROXY'] = {'http': '127.0.0.1:80'}
+   
 # make it changeable
 VARIABLES['GLOBAL_HOST'] = GLOBAL_HOST
 
@@ -349,7 +363,7 @@ HITRAN_DEFAULT_HEADER = {
   }
 }
 
-PARAMETER_META = \
+PARAMETER_META_ = \
 {
   "global_iso_id" : {
     "id" : 1,
@@ -1129,23 +1143,44 @@ PARAMETER_META = \
   "eta_HT_air" : {
     "default_fmt" : "%9.6f",
   },  
+  "gamma_H2O" : {
+    "default_fmt" : "%6.4f",
+  },
+  "n_H2O" : {
+    "default_fmt" : "%9.6f",
+  },
+  "Y_SDV_air_296" : {
+    "default_fmt" : "%10.3e",
+  },
+  "Y_SDV_self_296" : {
+    "default_fmt" : "%10.3e",
+  },
+  "Y_HT_air_296" : {
+    "default_fmt" : "%10.3e",
+  },
+  "Y_HT_self_296" : {
+    "default_fmt" : "%10.3e",
+  },
 }
 
-def transport2object(TransportData):
-    pass
-
-def object2transport(ObjectData):
-    pass
+# lower the case of all parameter names (fix for case-sensitive databases)
+PARAMETER_META = {}
+for param in PARAMETER_META_:
+    PARAMETER_META[param.lower()] = PARAMETER_META_[param]
 
 def getFullTableAndHeaderName(TableName,ext=None):
     #print('TableName=',TableName)
     if ext is None: ext = 'data'
-    fullpath_data = VARIABLES['BACKEND_DATABASE_NAME'] + '/' + TableName + '.' + ext
+    flag_abspath = False # check if the supplied table name already contains absolute path
+    if os.path.isabs(TableName): flag_abspath = True        
+    fullpath_data = TableName + '.' + ext
+    if not flag_abspath: fullpath_data = os.path.join(VARIABLES['BACKEND_DATABASE_NAME'],fullpath_data)
     if not os.path.isfile(fullpath_data):
         fullpath_data = VARIABLES['BACKEND_DATABASE_NAME'] + '/' + TableName + '.par'
         if not os.path.isfile(fullpath_data) and TableName!='sampletab':
             raise Exception('Lonely header \"%s\"' % fullpath_data)
-    fullpath_header = VARIABLES['BACKEND_DATABASE_NAME'] + '/' + TableName + '.header'
+    fullpath_header = TableName + '.header'
+    if not flag_abspath: fullpath_header = os.path.join(VARIABLES['BACKEND_DATABASE_NAME'],fullpath_header)
     return fullpath_data,fullpath_header
 
 def getParameterFormat(ParameterName,TableName):
@@ -1370,12 +1405,24 @@ def cache2storage(TableName):
     TableHeader = getTableHeader(TableName)
     OutfileHeader.write(json.dumps(TableHeader,indent=2))
     
-def storage2cache(TableName,cast=True,ext=None):
-    """NHL"""
+def storage2cache(TableName,cast=True,ext=None,nlines=None,pos=None):
+    """ edited by NHL
+    TableName: name of the HAPI table to read in
+    ext: file extension
+    nlines: number of line in the block; if None, read all line at once 
+    pos: file position to seek
+    """
     #print 'storage2cache:'
     #print('TableName',TableName)
+    if nlines is not None:
+        print('WARNING: storage2cache is reading the block of maximum %d lines'%nlines)
     fullpath_data,fullpath_header = getFullTableAndHeaderName(TableName,ext)
-    InfileData = open_(fullpath_data,'r')
+    if TableName in LOCAL_TABLE_CACHE and \
+       'filehandler' in LOCAL_TABLE_CACHE[TableName] and \
+       LOCAL_TABLE_CACHE[TableName]['filehandler'] is not None:
+        InfileData = LOCAL_TABLE_CACHE[TableName]['filehandler']
+    else:
+        InfileData = open_(fullpath_data,'r')            
     InfileHeader = open(fullpath_header,'r')
     #try:
     header_text = InfileHeader.read()
@@ -1388,7 +1435,8 @@ def storage2cache(TableName,cast=True,ext=None):
     #print 'Header:'+str(Header)
     LOCAL_TABLE_CACHE[TableName] = {}
     LOCAL_TABLE_CACHE[TableName]['header'] = Header
-    LOCAL_TABLE_CACHE[TableName]['data'] = {}
+    LOCAL_TABLE_CACHE[TableName]['data'] = {}    
+    LOCAL_TABLE_CACHE[TableName]['filehandler'] = InfileData
     # Check if Header['order'] and Header['extra'] contain
     #  parameters with same names, raise exception if true.
     #intersct = set(Header['order']).intersection(set(Header.get('extra',[])))
@@ -1413,10 +1461,17 @@ def storage2cache(TableName,cast=True,ext=None):
     header = LOCAL_TABLE_CACHE[TableName]['header']
     if 'extra' in header and header['extra']:
         line_count = 0
+        flag_EOF = False
         #line_number = LOCAL_TABLE_CACHE[TableName]['header']['number_of_rows']
-        for line in InfileData:
+        #for line in InfileData:
+        while True:
             #print '%d line from %d' % (line_count,line_number)
             #print 'line: '+line #
+            if nlines is not None and line_count>=nlines: break
+            line = InfileData.readline()
+            if line=='': # end of file is represented by an empty string
+                flag_EOF = True
+                break 
             try:
                 RowObject = getRowObjectFromString(line,TableName)
                 line_count += 1
@@ -1461,6 +1516,7 @@ def storage2cache(TableName,cast=True,ext=None):
                             else:
                                 raise Exception('PARSE ERROR: unknown format of the par value (%s)'%line[start:end])
                 elif dtype==int and qnt=='local_iso_id':
+                    if line[start:end]=='0': return 10
                     try:
                         return dtype(line[start:end])
                     except ValueError:
@@ -1471,10 +1527,25 @@ def storage2cache(TableName,cast=True,ext=None):
             #cfunc.__doc__ = 'converter {} {}'.format(qnt, fmt) # doesn't work in earlier versions of Python
             converters.append(cfunc)
             #start = end
-        data_matrix = [[cvt(line) for cvt in converters] for line in InfileData]
+        #data_matrix = [[cvt(line) for cvt in converters] for line in InfileData]
+        flag_EOF = False
+        line_count = 0
+        data_matrix = []
+        while True:
+            if nlines is not None and line_count>=nlines: break   
+            line = InfileData.readline()
+            if line=='': # end of file is represented by an empty string
+                flag_EOF = True
+                break 
+            data_matrix.append([cvt(line) for cvt in converters])
+            line_count += 1
         data_columns = zip(*data_matrix)
         for qnt, col in zip(quantities, data_columns):
-            LOCAL_TABLE_CACHE[TableName]['data'][qnt].extend(col)               
+            #LOCAL_TABLE_CACHE[TableName]['data'][qnt].extend(col) # old code
+            if type(col[0]) in {int,float}:
+                LOCAL_TABLE_CACHE[TableName]['data'][qnt] = np.array(col) # new code
+            else:
+                LOCAL_TABLE_CACHE[TableName]['data'][qnt].extend(col) # old code
             #LOCAL_TABLE_CACHE[TableName]['data'][qnt] = list(col)
             #LOCAL_TABLE_CACHE[TableName]['data'][qnt] = col
         header['number_of_rows'] = line_count = (
@@ -1491,10 +1562,12 @@ def storage2cache(TableName,cast=True,ext=None):
     LOCAL_TABLE_CACHE[TableName]['header']['order'] = glob_order
     LOCAL_TABLE_CACHE[TableName]['header']['format'] = glob_format
     LOCAL_TABLE_CACHE[TableName]['header']['default'] = glob_default
-    InfileData.close()
+    if flag_EOF:
+        InfileData.close()
+        LOCAL_TABLE_CACHE[TableName]['filehandler'] = None
     InfileHeader.close()
     print('                     Lines parsed: %d' % line_count)
-    pass    
+    return flag_EOF    
     
 ## old version based on regular expressions    
 #def storage2cache(TableName):
@@ -2858,25 +2931,29 @@ PARLIST_ID = ['trans_id',]
 PARLIST_STANDARD = ['molec_id','local_iso_id','nu','sw','a','elower','gamma_air',
                     'delta_air','gamma_self','n_air','n_self','gp','gpp']
 PARLIST_LABELS = ['statep','statepp']
-PARLIST_LINEMIXING = ['y_air','y_self']
+#PARLIST_LINEMIXING = ['y_air','y_self']
 
 PARLIST_VOIGT_AIR = ['gamma_air','delta_air','deltap_air','n_air']
 PARLIST_VOIGT_SELF = ['gamma_self','delta_self','deltap_self','n_self']
 PARLIST_VOIGT_H2 = ['gamma_H2','delta_H2','deltap_H2','n_H2']
 PARLIST_VOIGT_CO2 = ['gamma_CO2','delta_CO2','n_CO2']
 PARLIST_VOIGT_HE = ['gamma_He','delta_He','n_He']
+PARLIST_VOIGT_H2O = ['gamma_H2O','n_H2O']
+PARLIST_VOIGT_LINEMIXING = ['y_air','y_self']
 PARLIST_VOIGT_ALL = mergeParlist(PARLIST_VOIGT_AIR,PARLIST_VOIGT_SELF,
                                  PARLIST_VOIGT_H2,PARLIST_VOIGT_CO2,
-                                 PARLIST_VOIGT_HE)
+                                 PARLIST_VOIGT_HE,PARLIST_VOIGT_H2O,
+                                 PARLIST_VOIGT_LINEMIXING)
 
 PARLIST_SDVOIGT_AIR = ['gamma_air','delta_air','deltap_air','n_air','SD_air']
 PARLIST_SDVOIGT_SELF = ['gamma_self','delta_self','deltap_self','n_self','SD_self']
 PARLIST_SDVOIGT_H2 = []
 PARLIST_SDVOIGT_CO2 = []
 PARLIST_SDVOIGT_HE = []
+PARLIST_SDVOIGT_LINEMIXING = ['Y_SDV_air_296','Y_SDV_self_296']
 PARLIST_SDVOIGT_ALL = mergeParlist(PARLIST_SDVOIGT_AIR,PARLIST_SDVOIGT_SELF,
                                    PARLIST_SDVOIGT_H2,PARLIST_SDVOIGT_CO2,
-                                   PARLIST_SDVOIGT_HE)
+                                   PARLIST_SDVOIGT_HE,PARLIST_SDVOIGT_LINEMIXING)
 
 PARLIST_GALATRY_AIR = ['gamma_air','delta_air','deltap_air','n_air','beta_g_air']
 PARLIST_GALATRY_SELF = ['gamma_self','delta_self','deltap_self','n_self','beta_g_self']
@@ -2895,7 +2972,7 @@ PARLIST_HT_SELF = ['gamma_HT_0_self_50','n_HT_self_50','gamma_HT_2_self_50',
                    'delta_HT_0_self_296','deltap_HT_self_296','delta_HT_2_self_296',
                    'gamma_HT_0_self_700','n_HT_self_700','gamma_HT_2_self_700',
                    'delta_HT_0_self_700','deltap_HT_self_700','delta_HT_2_self_700',
-                   'nu_HT_self','kappa_HT_self','eta_HT_self']
+                   'nu_HT_self','kappa_HT_self','eta_HT_self','Y_HT_self_296']
 #PARLIST_HT_AIR = ['gamma_HT_0_air_50','n_HT_air_50','gamma_HT_2_air_50',
 #                  'delta_HT_0_air_50','deltap_HT_air_50','delta_HT_2_air_50',
 #                  'gamma_HT_0_air_150','n_HT_air_150','gamma_HT_2_air_150',
@@ -2907,12 +2984,13 @@ PARLIST_HT_SELF = ['gamma_HT_0_self_50','n_HT_self_50','gamma_HT_2_self_50',
 #                  'nu_HT_air','kappa_HT_air','eta_HT_air']
 PARLIST_HT_AIR = ['gamma_HT_0_air_296','n_HT_air_296','gamma_HT_2_air_296',
                   'delta_HT_0_air_296','deltap_HT_air_296','delta_HT_2_air_296',
-                  'nu_HT_air','kappa_HT_air','eta_HT_air']
+                  'nu_HT_air','kappa_HT_air','eta_HT_air','Y_HT_air_296']
 PARLIST_HT_ALL = mergeParlist(PARLIST_HT_SELF,PARLIST_HT_AIR)
                                    
 PARLIST_ALL = mergeParlist(PARLIST_ID,PARLIST_DOTPAR,PARLIST_STANDARD,
-                           PARLIST_LABELS,PARLIST_LINEMIXING,PARLIST_VOIGT_ALL,
-                           PARLIST_SDVOIGT_ALL,PARLIST_GALATRY_ALL,PARLIST_HT_ALL)
+                           PARLIST_LABELS,PARLIST_VOIGT_ALL,
+                           PARLIST_SDVOIGT_ALL,PARLIST_GALATRY_ALL,
+                           PARLIST_HT_ALL)
 
 PARAMETER_GROUPS = {
   'par_line' : PARLIST_DOTPAR,
@@ -2921,18 +2999,21 @@ PARAMETER_GROUPS = {
   'id' : PARLIST_ID,
   'standard' : PARLIST_STANDARD,
   'labels' : PARLIST_LABELS,
-  'linemixing' : PARLIST_LINEMIXING,
+  #'linemixing' : PARLIST_LINEMIXING,
   'voigt_air' : PARLIST_VOIGT_AIR,
   'voigt_self' : PARLIST_VOIGT_SELF,
   'voigt_h2' : PARLIST_VOIGT_H2,
   'voigt_co2' : PARLIST_VOIGT_CO2,
   'voigt_he' : PARLIST_VOIGT_HE,
+  'voigt_h2o' : PARLIST_VOIGT_H2O,
+  'voigt_linemixing': PARLIST_VOIGT_LINEMIXING,
   'voigt' : PARLIST_VOIGT_ALL,
   'sdvoigt_air' : PARLIST_SDVOIGT_AIR,
   'sdvoigt_self' : PARLIST_SDVOIGT_SELF,
   'sdvoigt_h2' : PARLIST_SDVOIGT_H2,
   'sdvoigt_co2' : PARLIST_SDVOIGT_CO2,
   'sdvoigt_he' : PARLIST_SDVOIGT_HE,
+  'sdvoigt_linemixing': PARLIST_SDVOIGT_LINEMIXING,
   'sdvoigt' : PARLIST_SDVOIGT_ALL,
   'galatry_air' : PARLIST_GALATRY_AIR,
   'galatry_self' : PARLIST_GALATRY_SELF,
@@ -2965,7 +3046,7 @@ def prepareParlist(pargroups=[],params=[],dotpar=True):
         
     # Iterate over single parameters.
     for param in params:
-        param = param.lower()
+        #param = param.lower()
         parlist.append(param)
         
     # Clean up parameter list.
@@ -2996,7 +3077,7 @@ def prepareHeader(parlist):
     HEADER['extra_format'] = {}
     HEADER['extra_separator'] = ','
     for param in plist:
-        #param = param.lower()
+        param = param.lower()
         HEADER['extra'].append(param)
         HEADER['extra_format'][param] = PARAMETER_META[param]['default_fmt']
         
@@ -3028,7 +3109,13 @@ def queryHITRAN(TableName,iso_id_list,numin,numax,pargroups=[],params=[],dotpar=
     #raise Exception(url)
     # Download data by chunks.
     if VARIABLES['DISPLAY_FETCH_URL']: print(url+'\n')
-    try:
+    try:       
+        # Proxy handling # https://stackoverflow.com/questions/1450132/proxy-with-urllib2
+        if VARIABLES['PROXY']:
+            print('Using proxy '+str(VARIABLES['PROXY']))
+            proxy = urllib2.ProxyHandler(VARIABLES['PROXY'])
+            opener = urllib2.build_opener(proxy)
+            urllib2.install_opener(opener)            
         req = urllib2.urlopen(url)
     except urllib2.HTTPError:
         raise Exception('Failed to retrieve data for given parameters.')
@@ -3109,7 +3196,7 @@ ISO_ID = {
      13 : [       2,   7,  '(12C)(18O)2',               0.0000039573,       47.998322,      'CO2'     ],
      14 : [       2,   8,  '(17O)(12C)(18O)',           0.00000147,         46.998291,      'CO2'     ],
     121 : [       2,   9,  '(12C)(17O)2',               0.0000001368,       45.998262,      'CO2'     ],
-     15 : [       2,   0,  '(13C)(18O)2',               0.000000044967,     49.001675,      'CO2'     ],  # 0->11
+     15 : [       2,  10,  '(13C)(18O)2',               0.000000044967,     49.001675,      'CO2'     ],  # 0->11
     120 : [       2,  11,  '(18O)(13C)(17O)',           0.00000001654,      48.00165,       'CO2'     ],  # 'A'->11
     122 : [       2,  12,  '(13C)(17O)2',               0.0000000015375,    47.001618,      'CO2'     ],  # 'B'->12
      16 : [       3,   1,  '(16O)3',                    0.992901,           47.984745,      'O3'      ],
@@ -3208,7 +3295,7 @@ ISO_ID = {
     116 : [      43,   1,  '(12C)4H2',                  0.955998,           50.01565,       'C4H2'    ],
     109 : [      44,   1,  'H(12C)3(14N)',              0.9646069,          51.01089903687, 'HC3N'    ],
     103 : [      45,   1,  'H2',                        0.999688,           2.01565,        'H2'      ],
-    115 : [      45,   2,  'HD',                        0.00022997,         3.021825,       'H2'      ],
+    115 : [      45,   2,  'HD',                        0.000311432,        3.021825,       'H2'      ],
      97 : [      46,   1,  '(12C)(32S)',                0.939624,           43.971036,      'CS'      ],
      98 : [      46,   2,  '(12C)(34S)',                0.0416817,          45.966787,      'CS'      ],
      99 : [      46,   3,  '(13C)(32S)',                0.0105565,          44.974368,      'CS'      ],
@@ -3217,9 +3304,9 @@ ISO_ID = {
     123 : [      48,   1,  '(12C)2(14N)2',              0.970752433,        52.006148,      'C2N2'    ],
     124 : [      49,   1,  '(12C)(16O)(35Cl)2',         0.566391761,        97.9326199796,  'COCl2'   ],
     125 : [      49,   2,  '(12C)(16O)(35Cl)(37Cl)',    0.362235278,        99.9296698896,  'COCl2'   ],    
-    101 : [    1001,   1,  'H',                         None,               None,           'H'       ],
-    102 : [    1002,   1,  'He',                        None,               None,           'He'      ],
-    104 : [    1018,   1,  'Ar',                        None,               None,           'Ar'      ],
+#    101 : [    1001,   1,  'H',                         None,               None,           'H'       ],
+#    102 : [    1002,   1,  'He',                        None,               None,           'He'      ],
+#    104 : [    1018,   1,  'Ar',                        None,               None,           'Ar'      ],
 
 }
 
@@ -3253,7 +3340,7 @@ ISO = {
 (        2,   7    ): [     13,  '(12C)(18O)2',               0.0000039573,       47.998322,      'CO2'     ],
 (        2,   8    ): [     14,  '(17O)(12C)(18O)',           0.00000147,         46.998291,      'CO2'     ],
 (        2,   9    ): [    121,  '(12C)(17O)2',               0.0000001368,       45.998262,      'CO2'     ],
-(        2,   0    ): [     15,  '(13C)(18O)2',               0.000000044967,     49.001675,      'CO2'     ],  # 0->10
+(        2,  10    ): [     15,  '(13C)(18O)2',               0.000000044967,     49.001675,      'CO2'     ],  # 0->10
 (        2,  11    ): [    120,  '(18O)(13C)(17O)',           0.00000001654,      48.00165,       'CO2'     ],  # 'A'->11
 (        2,  12    ): [    122,  '(13C)(17O)2',               0.0000000015375,    47.001618,      'CO2'     ],  # 'B'->12
 (        3,   1    ): [     16,  '(16O)3',                    0.992901,           47.984745,      'O3'      ],
@@ -3288,7 +3375,7 @@ ISO = {
 (       11,   1    ): [     45,  '(14N)H3',                   0.9958715,          17.026549,      'NH3'     ],
 (       11,   2    ): [     46,  '(15N)H3',                   0.0036613,          18.023583,      'NH3'     ],
 (       12,   1    ): [     47,  'H(14N)(16O)3',              0.98911,            62.995644,      'HNO3'    ],
-(       12,   2    ): [    117,  'H(15N)(16O)3',              0.003636,           63.99268,      'HNO3'   ],
+(       12,   2    ): [    117,  'H(15N)(16O)3',              0.003636,           63.99268,       'HNO3'    ],
 (       13,   1    ): [     48,  '(16O)H',                    0.997473,           17.00274,       'OH'      ],
 (       13,   2    ): [     49,  '(18O)H',                    0.00200014,         19.006986,      'OH'      ],
 (       13,   3    ): [     50,  '(16O)D',                    0.00015537,         18.008915,      'OH'      ],
@@ -3352,18 +3439,18 @@ ISO = {
 (       43,   1    ): [    116,  '(12C)4H2',                  0.955998,           50.01565,       'C4H2'    ],
 (       44,   1    ): [    109,  'H(12C)3(14N)',              0.9646069,          51.01089903687, 'HC3N'    ],
 (       45,   1    ): [    103,  'H2',                        0.999688,           2.01565,        'H2'      ],
-(       45,   2    ): [    115,  'HD',                        0.00022997,         3.021825,       'H2'      ],
+(       45,   2    ): [    115,  'HD',                        0.000311432,        3.021825,       'H2'      ],
 (       46,   1    ): [     97,  '(12C)(32S)',                0.939624,           43.971036,      'CS'      ],
 (       46,   2    ): [     98,  '(12C)(34S)',                0.0416817,          45.966787,      'CS'      ],
 (       46,   3    ): [     99,  '(13C)(32S)',                0.0105565,          44.974368,      'CS'      ],
 (       46,   4    ): [    100,  '(12C)(33S)',                0.00741668,         44.970399,      'CS'      ],
 (       47,   1    ): [    114,  '(32S)(16O)3',               0.9423964,          79.95682,       'SO3'     ],
 (       48,   1    ): [    123,  '(12C)2(14N)2',              0.970752433,        52.006148,      'C2N2'    ],
-(       49,   1    ): [    124,  '(12C)(16O)(35Cl)2',         0.566391761,        97.9326199796,  'COCl2'    ],
-(       49,   2    ): [    125,  '(12C)(16O)(35Cl)(37Cl)',    0.362235278,        99.9296698896,  'COCl2'    ],
-(     1001,   1    ): [    101,  'H',                         None,               None,           'H'       ],
-(     1002,   1    ): [    102,  'He',                        None,               None,           'He'      ],
-(     1018,   1    ): [    104,  'Ar',                        None,               None,           'Ar'      ],
+(       49,   1    ): [    124,  '(12C)(16O)(35Cl)2',         0.566391761,        97.9326199796,  'COCl2'   ],
+(       49,   2    ): [    125,  '(12C)(16O)(35Cl)(37Cl)',    0.362235278,        99.9296698896,  'COCl2'   ],
+#(     1001,   1    ): [    101,  'H',                         None,               None,           'H'       ],
+#(     1002,   1    ): [    102,  'He',                        None,               None,           'He'      ],
+#(     1018,   1    ): [    104,  'Ar',                        None,               None,           'Ar'      ],
 
 }
 
@@ -17786,7 +17873,7 @@ def pcqsdhc(sg0,GamD,Gam0,Gam2,Shift0,Shift2,anuVC,eta,sg):
     #
     #-------------------------------------------------
     
-    # sg is the only vector argument which is passed to fusnction
+    # sg is the only vector argument which is passed to function
     
     if type(sg) not in set([array,ndarray,list,tuple]):
         sg = array([sg])
@@ -18241,9 +18328,7 @@ def absorptionCoefficient_HT(Components=None,SourceTables=None,partitionFunction
                                               HITRAN_units=False,GammaL='gamma_self')
     ---
     """
-   
-    warn('To get the most up-to-date version please check http://hitran.org/hapi')
-   
+      
     # Parameters OmegaRange,OmegaStep,OmegaWing,OmegaWingHW, and OmegaGrid
     # are deprecated and given for backward compatibility with the older versions.
     if WavenumberRange:  OmegaRange=WavenumberRange
@@ -18334,9 +18419,10 @@ def absorptionCoefficient_HT(Components=None,SourceTables=None,partitionFunction
     if VARIABLES['DEBUG']: print('absorptionCoefficient_HT: Diluent=%s'%Diluent)
         
     # Simple check
+    print(Diluent)  # Added print statement # CHANGED RJH 23MAR18  # Simple check
     for key in Diluent:
         val = Diluent[key]
-        if val < 0 and val > 1:
+        if val < 0 or val > 1: # if val < 0 and val > 1:# CHANGED RJH 23MAR18
             raise Exception('Diluent fraction must be in [0,1]')
     
     # SourceTables contain multiple tables
@@ -18391,7 +18477,7 @@ def absorptionCoefficient_HT(Components=None,SourceTables=None,partitionFunction
             #   pressure broadening coefficient
             Gamma0 = 0.; Shift0 = 0.; Gamma2 = 0.; Shift2 = 0.; NuVC = 0.; EtaNumer = 0.;
             for species in Diluent:
-                species_lower = species.lower()
+                species_lower = species # species_lower = species.lower() # CHANGED RJH 23MAR18
                 
                 abun = Diluent[species]
                 
@@ -18596,9 +18682,7 @@ def absorptionCoefficient_SDVoigt(Components=None,SourceTables=None,partitionFun
                                               HITRAN_units=False,GammaL='gamma_self')
     ---
     """
-   
-    warn('To get the most up-to-date version please check http://hitran.org/hapi')
-   
+      
     # Paremeters OmegaRange,OmegaStep,OmegaWing,OmegaWingHW, and OmegaGrid
     # are deprecated and given for backward compatibility with the older versions.
     if WavenumberRange:  OmegaRange=WavenumberRange
@@ -18679,9 +18763,10 @@ def absorptionCoefficient_SDVoigt(Components=None,SourceTables=None,partitionFun
             raise Exception('Unknown GammaL value: %s' % GammaL)
         
     # Simple check
+    print(Diluent)  # Added print statement # CHANGED RJH 23MAR18  # Simple check
     for key in Diluent:
         val = Diluent[key]
-        if val < 0 and val > 1:
+        if val < 0 or val > 1: # if val < 0 and val > 1:# CHANGED RJH 23MAR18
             raise Exception('Diluent fraction must be in [0,1]')
     
     # SourceTables contain multiple tables
@@ -18736,7 +18821,7 @@ def absorptionCoefficient_SDVoigt(Components=None,SourceTables=None,partitionFun
             #   pressure broadening coefficient
             Gamma0 = 0.; Shift0 = 0.; Gamma2 = 0.; Shift2 = 0.
             for species in Diluent:
-                species_lower = species.lower()
+                species_lower = species # species_lower = species.lower() # CHANGED RJH 23MAR18
                 
                 abun = Diluent[species]
                 
@@ -18926,9 +19011,10 @@ def absorptionCoefficient_Voigt(Components=None,SourceTables=None,partitionFunct
             raise Exception('Unknown GammaL value: %s' % GammaL)
         
     # Simple check
+    print(Diluent)  # Added print statement # CHANGED RJH 23MAR18  # Simple check
     for key in Diluent:
         val = Diluent[key]
-        if val < 0 and val > 1:
+        if val < 0 or val > 1: # if val < 0 and val > 1:# CHANGED RJH 23MAR18
             raise Exception('Diluent fraction must be in [0,1]')
     
     # SourceTables contain multiple tables
@@ -18983,7 +19069,7 @@ def absorptionCoefficient_Voigt(Components=None,SourceTables=None,partitionFunct
             #   pressure broadening coefficient
             Gamma0 = 0.; Shift0 = 0.;
             for species in Diluent:
-                species_lower = species.lower()
+                species_lower = species # species_lower = species.lower() # CHANGED RJH 23MAR18
                 
                 abun = Diluent[species]
                 
@@ -19164,9 +19250,10 @@ def absorptionCoefficient_Lorentz(Components=None,SourceTables=None,partitionFun
             raise Exception('Unknown GammaL value: %s' % GammaL)
         
     # Simple check
+    print(Diluent)  # Added print statement # CHANGED RJH 23MAR18  # Simple check
     for key in Diluent:
         val = Diluent[key]
-        if val < 0 and val > 1:
+        if val < 0 or val > 1: # if val < 0 and val > 1:# CHANGED RJH 23MAR18
             raise Exception('Diluent fraction must be in [0,1]')
     
     # SourceTables contain multiple tables
@@ -19216,7 +19303,7 @@ def absorptionCoefficient_Lorentz(Components=None,SourceTables=None,partitionFun
             #   pressure broadening coefficient
             Gamma0 = 0.; Shift0 = 0.;
             for species in Diluent:
-                species_lower = species.lower()
+                species_lower = species # species_lower = species.lower() # CHANGED RJH 23MAR18
                 
                 abun = Diluent[species]
                 
@@ -19268,7 +19355,7 @@ def absorptionCoefficient_Lorentz(Components=None,SourceTables=None,partitionFun
     return Omegas,Xsect
     
 # Alias for a profile selector
-absorptionCoefficient = absorptionCoefficient_HT
+#absorptionCoefficient = absorptionCoefficient_HT
     
 # ==========================================================================================
 # =========================== /NEW ABSORPTION COEFFICIENT ===================================
@@ -19447,6 +19534,23 @@ def absorptionCoefficient_Doppler(Components=None,SourceTables=None,partitionFun
     if File: save_to_file(File,Format,Omegas,Xsect)
     return Omegas,Xsect
 
+# -------------------------------------------------------------------------------
+# UNIFIED INTERFACE FOR THE ABSORPTION COEFFICIENT AND CROSS-SECTION CALCULATIONS
+# -------------------------------------------------------------------------------
+PROFILE_MAP = {
+    'Voigt': absorptionCoefficient_Voigt,
+    'Lorentz': absorptionCoefficient_Lorentz,
+    'Doppler': absorptionCoefficient_Doppler,
+    'SDV': absorptionCoefficient_SDVoigt,
+    'HT': absorptionCoefficient_HT,
+}
+def absorptionCrossSection(profile='HT',**argv):
+    argv['HITRAN_units'] = True
+    return PROFILE_MAP[profile](**argv)
+    
+def absorptionCoefficient(profile='HT',**argv):
+    argv['HITRAN_units'] = False
+    return PROFILE_MAP[profile](**argv)    
     
 # ---------------------------------------------------------------------------
 # SHORTCUTS AND ALIASES FOR ABSORPTION COEFFICIENTS
