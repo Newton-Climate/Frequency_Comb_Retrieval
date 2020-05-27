@@ -17,7 +17,7 @@ def CalculateChi2( modelled_measurement ,measurement ,state_vector):
 
 
 
-def LinearInversion( state_vector ,measurement_object ,hitran_object):
+def LinearInversion( state_vector ,measurement_object ,hitran_object, FM=False):
 
     k = ComputeJacobian( state_vector ,measurement_object ,hitran_object ,linear=True)
     ans = inv(k.T.dot(k)).dot(k.T).dot( np.log(measurement_object.FC) )
@@ -25,8 +25,11 @@ def LinearInversion( state_vector ,measurement_object ,hitran_object):
    
     modelled_measurement = np.exp (k.dot(ans))
 
-
-    return ans, modelled_measurement
+    if FM == False:
+        return ans
+    else:
+        return ans, modelled_measurement
+    
 
 def TestLinearInversion( test_state_vector ,true_state_vector ,measurement_object ,hitran_object):
     
@@ -101,7 +104,7 @@ def MakeInversionFunction( dataset_object, initial_guess):
     num_measurements = dataset_object.num_measurements
     ch4_min_wavenumber, ch4_max_wavenumber = 6055, 6120
     co2_min_wavenumber, co2_max_wavenumber = 6180, 6250
-    hdo_min_wavenumber, hdo_max_wavenumber = 6310, 6380
+    hdo_min_wavenumber, hdo_max_wavenumber = 6310, 6370
     global Invert
     
 
@@ -137,8 +140,8 @@ def MakeInversionFunction( dataset_object, initial_guess):
         return output_vector
     return Invert
 
-def InvertParallel( inversion_function, num_measurements):
-    pool = mp.Pool(4)
+def InvertParallel( inversion_function, num_measurements, num_threads = 4):
+    pool = mp.Pool(num_threads)
     result = pool.map( inversion_function ,[i for i in range(num_measurements )])
 
     # order results by time stamp
