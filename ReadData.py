@@ -103,8 +103,8 @@ object = CombData( 'filename.h5')
 
             # Take moving average
             averaged_measurements[:,i] = np.nanmean( self.FC[: , indexes ], axis = 1)
-            averaged_temperature = self.temperature[ indexes ].mean()
-            averaged_pressure = self.pressure[ indexes ].mean()
+            averaged_temperature[i] = self.temperature[ indexes ].mean()
+            averaged_pressure[i] = self.pressure[ indexes ].mean()
             num_averaged_measurements[i] = len(indexes) # save number of averaged measurements per window
 
             # save start and end times as tuple 
@@ -165,6 +165,17 @@ Reads data from FrequencyComb_object and assigns fields
         self.spectral_grid = dataset_object.wavenumber_grid
         self.time = dataset_object.time[ measurement_number ]
 
+        # Try saving time-averaged data 
+        try:
+            self.averaging_times = dataset_object.averaging_times[ measurement_number]
+            self.num_averaged_measurements = dataset_object.num_averaged_measurements[ measurement_number ]
+
+        except:
+            print('Data has not been averaged')
+
+    
+        
+
         # subset Frequency Comb data to user-defined spectral range
         window_indexes = np.array( np.where( (self.spectral_grid > self.min_wavenumber) & (self.spectral_grid < self.max_wavenumber) ))
         # Specify index of min and max wavenumber range in array
@@ -179,11 +190,6 @@ Reads data from FrequencyComb_object and assigns fields
         self.pathlength = dataset_object.pathlength
         return self
     # end of method GetMeasurement
-
-    def MovingAverage(a, n=3) :
-        ret = np.cumsum(a, dtype=float)
-        ret[n:] = ret[n:] - ret[:-n]
-        return ret[n - 1:] / n
 
     
     def GetVCD(self ,VMR_H2O = None ,specific_humidity = None):
