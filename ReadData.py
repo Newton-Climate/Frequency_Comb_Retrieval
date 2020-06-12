@@ -1,9 +1,8 @@
 from hapi import * # import HITRAN database functions
 import numpy as np
 import h5py
-import multiprocessing as mp
 import pdb
-
+from datetime import datetime, timedelta
 
 
 
@@ -55,7 +54,15 @@ object = CombData( 'filename.h5')
         self.temperature = GetDataField('Temperature_K')
         self.pressure = GetDataField('Pressure_mbar')
         self.pathlength = GetDataField('path_m') * 100.0 # convert from m to cm
-        self.time = GetDataField('LocalTime')
+
+        # convert timestamps from windows epoch to unix epoch
+        time = GetDataField('LocalTime')
+        time = time + datetime(1904, 1, 1).timestamp()
+
+        # convert from epoch seconds to y-m-d h:m:s
+        time = list(map(lambda x: datetime.fromtimestamp(x), time))
+        self.time = np.array(time)
+        
         frequency = GetDataField('Freq_Hz')
         c = 299792458 * 100 # speed of light
 #        frequency = np.flip(frequency) # need to reverse the order to low -> high
@@ -69,13 +76,67 @@ object = CombData( 'filename.h5')
         return self
     # end of method ReadDataFile
 
-    
+    def average_data( self ,time_increment = timedelta( minutes = 30) ):
+        
 
+        # define our windows
+        # round down start time to the hour
+        start_time = self.time[0].replace( microsecond = 0, second = 0, minute = 0)
+        end_time = start_time + time_increment
+        final_measurement_time = self.time[-1]
+        timestamps = self.time
 
+        # allocate memory for output 
+        num_measurements = int(np.ceil( (final_measurement_time - start_time) / time_increment ))
+        averaged_measurements = np.empty(( self.FC.shape[0], num_measurements ))
+        averaged_temperature = np.empty( num_measurements )
+        averaged_pressure = np.empty( num_measurements )
+        averaging_times = np.empty( num_measurements, dtype = tuple)
+        num_averaged_measurements = np.empty( num_measurements , dtype = int)
+        i= 0
 
-    def __init__(self, filename):
+        while start_time < final_measurement_time:
+
+            # find the indexes 
+            indexes = np.where( (timestamps > start_time) & (timestamps < end_time ))
+            indexes = ( np.array(indexes) ).flatten()
+
+            # Take moving average
+            averaged_measurements[:,i] = np.nanmean( self.FC[: , indexes ], axis = 1)
+            averaged_temperature[i] = self.temperature[ indexes ].mean()
+            averaged_pressure[i] = self.pressure[ indexes ].mean()
+            num_averaged_measurements[i] = len(indexes) # save number of averaged measurements per window
+
+            # save start and end times as tuple 
+            if end_time < final_measurement_time:
+                averaging_times[ i ] = (start_time ,end_time)
+            elif end_time > final_measurement_time:
+                averaging_times[ i ] = (start_time ,final_measurement_time )
+
+            # update iteration variables 
+            i += 1
+            start_time = end_time
+            end_time = start_time + time_increment
+        # end of while loop
+
+        # Save averaged measurements to the object (self)
+        self.time = [averaging_times[0] for starting_time in averaging_times]
+        self.averaging_times = averaging_times
+        self.num_averaged_measurements = num_averaged_measurements
+        self.FC = averaged_measurements
+        self.pressure = averaged_pressure
+        self.temperature = averaged_temperature
+        return self
+# end of function average_data
+
+    def __init__(self, filename, take_time_mean = False, time_increment = timedelta(minutes = 30)):
         self.filename = filename
         self.ReadDatafile(filename)
+
+        if take_time_mean:
+            self.average_data( time_increment = time_increment)
+            # end of take_time_mean statement
+            
     # end of function FreqComb.__init__
 # end of class CombData
 
@@ -92,6 +153,7 @@ inputs:
 1. measurement_object: Int that corresponds to the specfic measurement being requested
 2. FrequencyComb_object: the object that contains the entire frequency comb data
 '''
+        
 
     def GetMeasurement(self  ,measurement_number ,dataset_object ):
         '''
@@ -102,6 +164,17 @@ Reads data from FrequencyComb_object and assigns fields
         self.pressure = dataset_object.pressure[measurement_number]
         self.spectral_grid = dataset_object.wavenumber_grid
         self.time = dataset_object.time[ measurement_number ]
+
+        # Try saving time-averaged data 
+        try:
+            self.averaging_times = dataset_object.averaging_times[ measurement_number]
+            self.num_averaged_measurements = dataset_object.num_averaged_measurements[ measurement_number ]
+
+        except:
+            print('Data has not been averaged')
+
+    
+        
 
         # subset Frequency Comb data to user-defined spectral range
         window_indexes = np.array( np.where( (self.spectral_grid > self.min_wavenumber) & (self.spectral_grid < self.max_wavenumber) ))
@@ -118,6 +191,7 @@ Reads data from FrequencyComb_object and assigns fields
         return self
     # end of method GetMeasurement
 
+    
     def GetVCD(self ,VMR_H2O = None ,specific_humidity = None):
         '''
 Calculates VCD from self and FrequencyComb_object
@@ -218,3 +292,4 @@ initializes and saves solar spectra object and corresponding spectral grid
 #        self.solar_spectrum = self.GetSolarSpectrum()
     # end of method __init__
 # end of class HitranSpectra
+
