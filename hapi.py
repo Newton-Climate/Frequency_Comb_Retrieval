@@ -18419,7 +18419,7 @@ def absorptionCoefficient_HT(Components=None,SourceTables=None,partitionFunction
     if VARIABLES['DEBUG']: print('absorptionCoefficient_HT: Diluent=%s'%Diluent)
         
     # Simple check
-    print(Diluent)  # Added print statement # CHANGED RJH 23MAR18  # Simple check
+    #print(Diluent)  # Added print statement # CHANGED RJH 23MAR18  # Simple check
     for key in Diluent:
         val = Diluent[key]
         if val < 0 or val > 1: # if val < 0 and val > 1:# CHANGED RJH 23MAR18
@@ -18763,7 +18763,7 @@ def absorptionCoefficient_SDVoigt(Components=None,SourceTables=None,partitionFun
             raise Exception('Unknown GammaL value: %s' % GammaL)
         
     # Simple check
-    print(Diluent)  # Added print statement # CHANGED RJH 23MAR18  # Simple check
+    #print(Diluent)  # Added print statement # CHANGED RJH 23MAR18  # Simple check
     for key in Diluent:
         val = Diluent[key]
         if val < 0 or val > 1: # if val < 0 and val > 1:# CHANGED RJH 23MAR18
@@ -19011,7 +19011,7 @@ def absorptionCoefficient_Voigt(Components=None,SourceTables=None,partitionFunct
             raise Exception('Unknown GammaL value: %s' % GammaL)
         
     # Simple check
-    print(Diluent)  # Added print statement # CHANGED RJH 23MAR18  # Simple check
+    #print(Diluent)  # Added print statement # CHANGED RJH 23MAR18  # Simple check
     for key in Diluent:
         val = Diluent[key]
         if val < 0 or val > 1: # if val < 0 and val > 1:# CHANGED RJH 23MAR18
@@ -19250,7 +19250,7 @@ def absorptionCoefficient_Lorentz(Components=None,SourceTables=None,partitionFun
             raise Exception('Unknown GammaL value: %s' % GammaL)
         
     # Simple check
-    print(Diluent)  # Added print statement # CHANGED RJH 23MAR18  # Simple check
+    #print(Diluent)  # Added print statement # CHANGED RJH 23MAR18  # Simple check
     for key in Diluent:
         val = Diluent[key]
         if val < 0 or val > 1: # if val < 0 and val > 1:# CHANGED RJH 23MAR18

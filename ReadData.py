@@ -256,11 +256,11 @@ computs the cross-sections with broadening and line-mixing
 
 
         self.grid, self._CH4 = absorptionCoefficient_Voigt( SourceTables='CH4_S', WavenumberRange=[ min_wavenumber ,max_wavenumber ] ,WavenumberStep = wavenumber_resolution ,Environment={'p':pressure_ ,'T':temperature_},IntensityThreshold=1e-30)
-        self.grid, self._13CH4 = absorptionCoefficient_Voigt( SourceTables='13CH4_S', WavenumberRange=[ min_wavenumber ,max_wavenumber ] ,WavenumberStep = wavenumber_resolution ,Environment={'p':pressure_ ,'T':temperature_},IntensityThreshold=1e-30)
+        #self.grid, self._13CH4 = absorptionCoefficient_Voigt( SourceTables='13CH4_S', WavenumberRange=[ min_wavenumber ,max_wavenumber ] ,WavenumberStep = wavenumber_resolution ,Environment={'p':pressure_ ,'T':temperature_},IntensityThreshold=1e-30)
         
         nu_, self._CO2 = absorptionCoefficient_Voigt(SourceTables='CO2_S', WavenumberRange=[ min_wavenumber ,max_wavenumber ] ,WavenumberStep = wavenumber_resolution ,Environment={'p':pressure_ ,'T':temperature_},IntensityThreshold=1e-30)
         
-        nu_, self._13CO2 = absorptionCoefficient_Voigt(SourceTables='13CO2_S', WavenumberRange=[ min_wavenumber ,max_wavenumber ] ,WavenumberStep = wavenumber_resolution ,Environment={'p':pressure_ ,'T':temperature_},IntensityThreshold=1e-30)
+        #nu_, self._13CO2 = absorptionCoefficient_Voigt(SourceTables='13CO2_S', WavenumberRange=[ min_wavenumber ,max_wavenumber ] ,WavenumberStep = wavenumber_resolution ,Environment={'p':pressure_ ,'T':temperature_},IntensityThreshold=1e-30)
         nu_, self._H2O = absorptionCoefficient_Voigt(SourceTables='H2O_S', WavenumberRange=[ min_wavenumber ,max_wavenumber ] ,WavenumberStep = wavenumber_resolution ,Environment={'p':pressure_ ,'T':temperature_},IntensityThreshold=1e-30)
         nu_, self._HDO = absorptionCoefficient_Voigt(SourceTables='HDO_S', WavenumberRange=[ min_wavenumber ,max_wavenumber ] ,WavenumberStep = wavenumber_resolution ,Environment={'p':pressure_ ,'T':temperature_},IntensityThreshold=1e-30)
         return self
@@ -281,13 +281,22 @@ initializes and saves solar spectra object and corresponding spectral grid
     # end of method GetSolarSpectrum
 
 
-    def __init__(self ,dataset_object):
+    def __init__(self ,dataset_object, temperature = None, pressure = None):
 
         self.max_wavenumber = dataset_object.max_wavenumber + 1
         self.min_wavenumber = dataset_object.min_wavenumber - 1
         self.spectral_resolution = dataset_object.spectral_resolution
-        self.pressure = dataset_object.pressure
-        self.temperature = dataset_object.temperature
+        
+        if pressure == None:
+            self.pressure = dataset_object.pressure
+        else:
+            self.pressure = pressure
+
+        if temperature == None:
+            self.temperature = dataset_object.temperature
+        else:
+            self.temperature = temperature
+                
         self.ComputeCrossSections()
 #        self.solar_spectrum = self.GetSolarSpectrum()
     # end of method __init__
