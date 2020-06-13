@@ -3,7 +3,7 @@ from scipy.interpolate import interp1d
 from scipy.special import legendre
 
 import pdb
-#from inversion import TestLinearInversion
+from ReadData import *
 
 # define index
 
@@ -56,7 +56,7 @@ Outputs:
     optical_depth = VCD_dry * (VMR_CH4 * cross_sections._CH4 + VMR_H2O * cross_sections._H2O + VMR_CO2 * cross_sections._CO2)
     optical_depth_isotopes = VCD_dry * (VMR_HDO * cross_sections._HDO)
     transmission = np.exp( -optical_depth - optical_depth_isotopes )
-    return transmission, optical_depth
+    return transmission
 # end of function CalculateTransmission
 
 
@@ -143,11 +143,12 @@ outputs:
     
 
     
-    transmission, optical_depth = CalculateTransmission( state_vector ,measurement_object ,hitran_object)
+    transmission = CalculateTransmission( state_vector ,measurement_object ,hitran_object)
     transmission = DownSampleInstrument( hitran_object.grid ,transmission ,measurement_object.spectral_grid )
     
     shape_parameter_index = [i for i in range(num_species + 1,len(state_vector))]
     shape_parameter = state_vector[ shape_parameter_index ]
+    legendre_polynomial_degree = len( shape_parameter ) - 1
 
     polynomial_term = CalcPolynomialTerm( legendre_polynomial_degree ,shape_parameter , len(hitran_object.grid))
     polynomial_term = DownSampleInstrument( hitran_object.grid ,polynomial_term ,measurement_object.spectral_grid )
@@ -155,10 +156,10 @@ outputs:
 
     
     f_out = np.log(transmission) + polynomial_term
-    return f_out, transmission ,polynomial_term
+    return f_out
 
 def TemperatureJacobian( state_vector, measurement_object ,original_run):
-        T0 = measurement_object.temperature
+    T0 = measurement_object.temperature
     T1 = T0 + 5
 
     x1 = state_vector.copy()
@@ -242,7 +243,8 @@ jacobian: np.array that contains the jacobian that should be (num_spectral_point
             x_0 = state_vector.copy()
             dx = state_vector.copy()
             dx[ perturbation_index ] = 1.01 * dx[ perturbation_index ]
-            df ,transmission ,evaluated_polynomial = ForwardModel( dx ,measurement_object ,hitran_object )
+            f = base_run
+            df = ForwardModel( dx ,measurement_object ,hitran_object )
 
             df_dx = (df - f) / ( dx[ perturbation_index ] - x_0[ perturbation_index ])
 
