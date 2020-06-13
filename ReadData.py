@@ -281,14 +281,23 @@ initializes and saves solar spectra object and corresponding spectral grid
     # end of method GetSolarSpectrum
 
 
-    def __init__(self ,dataset_object):
+    def __init__(self ,dataset_object, temperature = None, pressure = None):
 
         self.max_wavenumber = dataset_object.max_wavenumber + 1
         self.min_wavenumber = dataset_object.min_wavenumber - 1
         self.spectral_resolution = dataset_object.spectral_resolution
-        self.pressure = dataset_object.pressure
-        self.temperature = dataset_object.temperature
-        self.ComputeCrossSections()
+        
+        if pressure == None:
+            self.pressure = dataset_object.pressure
+        else:
+            self.pressure = pressure
+
+            if temperature == None:
+                self.temperature = dataset_object.temperature
+            else:
+                self.temperature = temperature
+                
+                self.ComputeCrossSections()
 #        self.solar_spectrum = self.GetSolarSpectrum()
     # end of method __init__
 # end of class HitranSpectra
