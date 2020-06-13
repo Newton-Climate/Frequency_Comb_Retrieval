@@ -9,6 +9,7 @@ import pdb
 
 num_species = 4
 _H2O_index ,_CH4_index ,_CO2_index ,_HDO_index = [i for i in range(num_species)]
+_temperature_index = num_species 
 
 def DictToArray( input):
     output = np.hstack( (input[key] for key in input) )
@@ -37,7 +38,7 @@ Outputs:
         VMR_H2O = state_vector[ _H2O_index ]
         #VMR_13CO2 = state_vector[ _13CO2_index ]
         VMR_HDO = state_vector[ _HDO_index ]
-        shape_parameter_index = [i for i in range(num_species , len(state_vector))]
+        shape_parameter_index = [i for i in range(num_species + 1, len(state_vector))]
         shape_parameter = state_vector[ shape_parameter_index ]
 
 
@@ -145,7 +146,7 @@ outputs:
     transmission, optical_depth = CalculateTransmission( state_vector ,measurement_object ,hitran_object)
     transmission = DownSampleInstrument( hitran_object.grid ,transmission ,measurement_object.spectral_grid )
     
-    shape_parameter_index = [i for i in range(num_species ,len(state_vector))]
+    shape_parameter_index = [i for i in range(num_species + 1,len(state_vector))]
     shape_parameter = state_vector[ shape_parameter_index ]
 
     polynomial_term = CalcPolynomialTerm( legendre_polynomial_degree ,shape_parameter , len(hitran_object.grid))
@@ -156,7 +157,20 @@ outputs:
     f_out = np.log(transmission) + polynomial_term
     return f_out, transmission ,polynomial_term
 
-        
+def TemperatureJacobian( state_vector, measurement_object ,original_run):
+        T0 = measurement_object.temperature
+    T1 = T0 + 5
+
+    x1 = state_vector.copy()
+    x1[_temperature_index] = T1
+
+    # calculate the new cross-sections given the perturbed temperature
+    new_hitran_object = HitranSpectra( measurement_object ,temperature = T1)
+    
+    f0 = original_run
+    f1 = ForwardModel( x1, measurement_object , new_hitran_object)
+    dfdT = (f1 - f0) / (T1 - T0)
+    return dfdT
     
 
 
@@ -175,13 +189,12 @@ outputs:
 jacobian: np.array that contains the jacobian that should be (num_spectral_points X num_state_vector_elements)
 '''
 
-
-#    f ,transmission ,evaluated_polynomial = ForwardModel( state_vector ,measurement_object ,hitran_object )
-
-        
+    # run the forward model once for reference
+    base_run = ForwardModel( state_vector, measurement_object ,hitran_object)        
     jacobian = np.empty( (measurement_object.spectral_grid.size ,len(state_vector)) ) # allocate memory for output jacobian
+    
     # index for shape parameters for legendre
-    shape_parameter_index = [i for i in range(num_species , len(state_vector))]
+    shape_parameter_index = [i for i in range(num_species + 1, len(state_vector))]
     shape_parameter = state_vector[ shape_parameter_index ] 
 
     
@@ -204,6 +217,7 @@ jacobian: np.array that contains the jacobian that should be (num_spectral_point
         jacobian[: ,_CO2_index] = DownSampleInstrument(hitran_object.grid ,-1 * _CO2_cross_sections * vcd ,measurement_object.spectral_grid)
         jacobian[:, _HDO_index] = DownSampleInstrument(hitran_object.grid , -1 * _HDO_cross_sections * vcd,measurement_object.spectral_grid)
         #jacobian[: ,_13CO2_index] = DownSampleInstrument(hitran_object.grid ,-1 * _13CO2_cross_sections * vcd ,measurement_object.spectral_grid)
+        jacobian[ : , _temperature_index ] = TemperatureJacobian( state_vector ,measurement_object ,base_run)
         
 
         # Fill final jacobian with polynomial jacobian
@@ -220,7 +234,8 @@ jacobian: np.array that contains the jacobian that should be (num_spectral_point
 
 	
     else: #calculate the derivative using finite differencing (Euler's method)
-
+        
+        
         # Define finite difference function
         def CalculateDerivative( perturbation_index ,state_vector):
             
@@ -239,9 +254,11 @@ jacobian: np.array that contains the jacobian that should be (num_spectral_point
     # loop through each state vector element and calculate derivative via finite difference
         for state_vector_index in range( len( state_vector)  ):
 #            print(len(state_vector))
-#            print(state_vector_index)
-            jacobian[ : , state_vector_index ] = CalculateDerivative( state_vector_index ,state_vector)
-        # end of for-loop
+            if state_vector_index != _temperature_index:
+                jacobian[ : , state_vector_index ] = CalculateDerivative( state_vector_index ,state_vector)
+            elif state_vector_index == _temperature_index:
+                jacobian[ : , _temperature_index ] = TemperatureJacobian( state_vector ,measurement_object ,base_run)
+                # end of for-loop
         
     return jacobian
 # end of function CalculateJacobian
