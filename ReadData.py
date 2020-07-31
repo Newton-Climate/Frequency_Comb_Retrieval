@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 
 import numpy as np
 
-def GetCrossSections( min_wavenumber ,max_wavenumber):
+def GetCrossSections( min_wavenumber ,max_wavenumber, download_data = True):
 
     """
 Download the cross-sections for CH4, H2O, and CO2 by accessing the HITRAN database. 
@@ -21,13 +21,18 @@ outputs:
 Downloaded cross-section files
 """
     
-    
-    fetch('CH4_S' ,6 ,1 ,min_wavenumber ,max_wavenumber) # 12CH4
-    fetch('13CH4_S' ,6 ,2 ,min_wavenumber ,max_wavenumber) # 13CH4
-    fetch('CO2_S',2,1,min_wavenumber, max_wavenumber) # 12CO2
-    fetch('13CO2_S',2,2,min_wavenumber, max_wavenumber) # 12CO2
-    fetch('H2O_S',1,1,min_wavenumber,max_wavenumber) # H2O
-    fetch('HDO_S',1,4,min_wavenumber,max_wavenumber) # H2O
+
+
+    if download_data:
+        fetch('CH4_S' ,6 ,1 ,min_wavenumber ,max_wavenumber) # 12CH4
+        fetch('13CH4_S' ,6 ,2 ,min_wavenumber ,max_wavenumber) # 13CH4
+        fetch('CO2_S',2,1,min_wavenumber, max_wavenumber) # 12CO2
+        fetch('13CO2_S',2,2,min_wavenumber, max_wavenumber) # 12CO2
+        fetch('H2O_S',1,1,min_wavenumber,max_wavenumber) # H2O
+        fetch('HDO_S',1,4,min_wavenumber,max_wavenumber) # H2O
+        loadCache()
+    elif not download_data:
+        loadCache()
     return 0
 # end of function GetCrossSections
 
@@ -243,7 +248,7 @@ this was initialized as measurement_object = Measurement( i, CombData_object)
 '''
     
     
-    def ComputeCrossSections(self):
+    def ComputeCrossSections(self, use_hitran08 = False):
         '''
 computs the cross-sections with broadening and line-mixing
 '''
@@ -254,8 +259,13 @@ computs the cross-sections with broadening and line-mixing
         max_wavenumber = self.max_wavenumber # convert to bbcm^-1
         wavenumber_resolution = self.spectral_resolution
 
-
-        self.grid, self._CH4 = absorptionCoefficient_Voigt( SourceTables='CH4_S', WavenumberRange=[ min_wavenumber ,max_wavenumber ] ,WavenumberStep = wavenumber_resolution ,Environment={'p':pressure_ ,'T':temperature_},IntensityThreshold=1e-30)
+        if use_hitran08:
+            print("using Hitran 2008 for CH4 lines")
+            self.grid, self._CH4 = absorptionCoefficient_Voigt( SourceTables='06_hit08', WavenumberRange=[ min_wavenumber ,max_wavenumber ] ,WavenumberStep = wavenumber_resolution ,Environment={'p':pressure_ ,'T':temperature_},IntensityThreshold=1e-30)
+        else:
+            print("Using Hitran 16 for CH4 lines")
+            self.grid, self._CH4 = absorptionCoefficient_Voigt( SourceTables='CH4_S', WavenumberRange=[ min_wavenumber ,max_wavenumber ] ,WavenumberStep = wavenumber_resolution ,Environment={'p':pressure_ ,'T':temperature_},IntensityThreshold=1e-30)
+            
         #self.grid, self._13CH4 = absorptionCoefficient_Voigt( SourceTables='13CH4_S', WavenumberRange=[ min_wavenumber ,max_wavenumber ] ,WavenumberStep = wavenumber_resolution ,Environment={'p':pressure_ ,'T':temperature_},IntensityThreshold=1e-30)
         
         nu_, self._CO2 = absorptionCoefficient_Voigt(SourceTables='CO2_S', WavenumberRange=[ min_wavenumber ,max_wavenumber ] ,WavenumberStep = wavenumber_resolution ,Environment={'p':pressure_ ,'T':temperature_},IntensityThreshold=1e-30)
@@ -281,10 +291,10 @@ initializes and saves solar spectra object and corresponding spectral grid
     # end of method GetSolarSpectrum
 
 
-    def __init__(self ,dataset_object, temperature = None, pressure = None):
+    def __init__(self ,dataset_object, temperature = None, pressure = None, use_hitran08 = False):
 
-        self.max_wavenumber = dataset_object.max_wavenumber + 1
-        self.min_wavenumber = dataset_object.min_wavenumber - 1
+        self.max_wavenumber = dataset_object.max_wavenumber + 50
+        self.min_wavenumber = dataset_object.min_wavenumber - 50
         self.spectral_resolution = dataset_object.spectral_resolution
         
         if pressure == None:
@@ -297,7 +307,7 @@ initializes and saves solar spectra object and corresponding spectral grid
         else:
             self.temperature = temperature
                 
-        self.ComputeCrossSections()
+        self.ComputeCrossSections( use_hitran08 = use_hitran08 )
 #        self.solar_spectrum = self.GetSolarSpectrum()
     # end of method __init__
 # end of class HitranSpectra

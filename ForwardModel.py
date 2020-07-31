@@ -9,7 +9,8 @@ from ReadData import *
 
 num_species = 4
 _H2O_index ,_CH4_index ,_CO2_index ,_HDO_index = [i for i in range(num_species)]
-_temperature_index = num_species 
+_temperature_index = num_species
+_windspeed_index = num_species + 1
 
 def DictToArray( input):
     output = np.hstack( (input[key] for key in input) )
@@ -38,10 +39,6 @@ Outputs:
         VMR_H2O = state_vector[ _H2O_index ]
         #VMR_13CO2 = state_vector[ _13CO2_index ]
         VMR_HDO = state_vector[ _HDO_index ]
-        shape_parameter_index = [i for i in range(num_species + 1, len(state_vector))]
-        shape_parameter = state_vector[ shape_parameter_index ]
-
-
         
     if type(state_vector) == dict:
         VMR_CH4 = state_vector[ 'VMR_CH4' ]
@@ -123,8 +120,20 @@ def ArrayToDict( input_vector ):
     }
     return output_dict
 
+def DopplerShift( relative_speed ,spectral_grid):
+    c = 299792458 * 100 # speed of light in cm/s
 
-def ForwardModel(state_vector ,measurement_object ,hitran_object):
+    # calculate shift
+    shift1 = (relative_speed/c) * spectral_grid.copy()
+    shift2 = -(relative_speed/c) * spectral_grid.copy()
+    
+    coef1 = np.ones( spectral_grid.shape) + shift1
+    coef2 = np.ones( spectral_grid.shape) + shift2
+    spectral_grid_out = coef1 * coef2 * spectral_grid
+    return spectral_grid_out
+
+
+def ForwardModel(state_vector ,measurement_object ,hitran_object, flags = None):
     '''
 Evaluate the forward model: f = log(i) + p(lambda)
 i = exp( - tau) from Beer's Law
@@ -141,24 +150,29 @@ outputs:
 3. evaluated_polynomial: just for debugging
 '''
     
-
-    
     transmission = CalculateTransmission( state_vector ,measurement_object ,hitran_object)
-    transmission = DownSampleInstrument( hitran_object.grid ,transmission ,measurement_object.spectral_grid )
-    
-    shape_parameter_index = [i for i in range(num_species + 1,len(state_vector))]
+    spectral_grid = measurement_object.spectral_grid.copy()
+    if flags['fit_windspeed']:
+        spectral_grid = DopplerShift( state_vector[ _windspeed_index] , spectral_grid)
+
+    transmission = DownSampleInstrument( hitran_object.grid ,transmission ,spectral_grid)
+
+    if flags['fit_windspeed']:
+        shape_parameter_index = [i for i in range(num_species + 2,len(state_vector))]
+    else:
+        shape_parameter_index = [i for i in range(num_species + 1, len(state_vector))]
+        
     shape_parameter = state_vector[ shape_parameter_index ]
+
     legendre_polynomial_degree = len( shape_parameter ) - 1
-
     polynomial_term = CalcPolynomialTerm( legendre_polynomial_degree ,shape_parameter , len(hitran_object.grid))
-    polynomial_term = DownSampleInstrument( hitran_object.grid ,polynomial_term ,measurement_object.spectral_grid )
-#    pdb.set_trace()
 
-    
+    # Define the legendre polynomial grid 
+    polynomial_term = DownSampleInstrument( hitran_object.grid ,polynomial_term ,measurement_object.spectral_grid )
     f_out = np.log(transmission) + polynomial_term
     return f_out
 
-def TemperatureJacobian( state_vector, measurement_object ,original_run):
+def TemperatureJacobian( state_vector, measurement_object ,original_run, flags = None):
     T0 = measurement_object.temperature
     T1 = T0 + 5
 
@@ -166,17 +180,18 @@ def TemperatureJacobian( state_vector, measurement_object ,original_run):
     x1[_temperature_index] = T1
 
     # calculate the new cross-sections given the perturbed temperature
-    new_hitran_object = HitranSpectra( measurement_object ,temperature = T1)
+    new_hitran_object = HitranSpectra( measurement_object ,temperature = T1, use_hitran08 = flags['use_hitran08'])
     
     f0 = original_run
-    f1 = ForwardModel( x1, measurement_object , new_hitran_object)
+    f1 = ForwardModel( x1, measurement_object , new_hitran_object, flags = flags)
     dfdT = (f1 - f0) / (T1 - T0)
+
     return dfdT
     
 
 
 
-def ComputeJacobian( state_vector ,measurement_object ,hitran_object ,linear=True):
+def ComputeJacobian( state_vector ,measurement_object ,hitran_object ,flags = None ,linear=True):
     '''
 Calculate the jacobian of the system state either analytically or numerically.
 
@@ -191,12 +206,15 @@ jacobian: np.array that contains the jacobian that should be (num_spectral_point
 '''
 
     # run the forward model once for reference
-    base_run = ForwardModel( state_vector, measurement_object ,hitran_object)        
+    base_run = ForwardModel( state_vector, measurement_object ,hitran_object, flags)        
     jacobian = np.empty( (measurement_object.spectral_grid.size ,len(state_vector)) ) # allocate memory for output jacobian
     
     # index for shape parameters for legendre
-    shape_parameter_index = [i for i in range(num_species + 1, len(state_vector))]
-    shape_parameter = state_vector[ shape_parameter_index ] 
+    if flags['fit_windspeed']:
+        shape_parameter_index = [i for i in range(num_species + 2, len(state_vector))]
+    else:
+        shape_parameter_index = [i for i in range(num_species + 1, len(state_vector))]
+        shape_parameter = state_vector[ shape_parameter_index ] 
 
     
     # Calculate jacobian analytically 
@@ -227,7 +245,7 @@ jacobian: np.array that contains the jacobian that should be (num_spectral_point
         for index in shape_parameter_index:
             p = legendre(i)
             polynomial_jacobian = p(x)
-#            pdb.set_trace()
+
             jacobian[ : ,index ] = DownSampleInstrument( hitran_object.grid , polynomial_jacobian, measurement_object.spectral_grid )
             i += 1
         # end of for-loop
@@ -240,15 +258,18 @@ jacobian: np.array that contains the jacobian that should be (num_spectral_point
         # Define finite difference function
         def CalculateDerivative( perturbation_index ,state_vector):
             
-            x_0 = state_vector.copy()
-            dx = state_vector.copy()
-            dx[ perturbation_index ] = 1.01 * dx[ perturbation_index ]
-            f = base_run
-            df = ForwardModel( dx ,measurement_object ,hitran_object )
-
-            df_dx = (df - f) / ( dx[ perturbation_index ] - x_0[ perturbation_index ])
-
-
+            x0 = state_vector.copy()
+            x1 = state_vector.copy()
+            x1[ perturbation_index ] = 1.01 * x1[ perturbation_index ]
+            
+            if x0[perturbation_index] <= 1e-9:
+                x1[perturbation_index] = 1e-3
+                
+            dx = x1[perturbation_index] - x0[perturbation_index]
+            f0 = base_run
+            f1 = ForwardModel( x1 ,measurement_object ,hitran_object, flags )
+            
+            df_dx = (f1 - f0) / dx
 
             return df_dx
     # end of function CalculateDerivative
@@ -259,8 +280,8 @@ jacobian: np.array that contains the jacobian that should be (num_spectral_point
             if state_vector_index != _temperature_index:
                 jacobian[ : , state_vector_index ] = CalculateDerivative( state_vector_index ,state_vector)
             elif state_vector_index == _temperature_index:
-                jacobian[ : , _temperature_index ] = TemperatureJacobian( state_vector ,measurement_object ,base_run)
+                jacobian[ : , _temperature_index ] = TemperatureJacobian( state_vector ,measurement_object ,base_run, flags = flags)
                 # end of for-loop
-        
+#    pdb.set_trace()
     return jacobian
 # end of function CalculateJacobian
